@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/curve25519"
@@ -21,7 +22,20 @@ const (
 	clientVersion = "a-6.3-1922"
 )
 
+var httpClient = &http.Client{Timeout: 20 * time.Second}
+
+func setAPIHeaders(req *http.Request) {
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("User-Agent", "okhttp/3.12.1")
+	req.Header.Set("CF-Client-Version", clientVersion)
+}
+
 type regResponse struct {
+	ID      string `json:"id"`
+	Token   string `json:"token"`
+	Account struct {
+		AccountType string `json:"account_type"`
+	} `json:"account"`
 	Config struct {
 		ClientID string `json:"client_id"`
 		Peers    []struct {
@@ -65,12 +79,9 @@ func Register() (*settings.Warp, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	req.Header.Set("User-Agent", "okhttp/3.12.1")
-	req.Header.Set("CF-Client-Version", clientVersion)
+	setAPIHeaders(req)
 
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("warp register: %w", err)
 	}
@@ -104,6 +115,73 @@ func Register() (*settings.Warp, error) {
 			r.Config.Interface.Addresses.V4 + "/32",
 			r.Config.Interface.Addresses.V6 + "/128",
 		},
-		Reserved: reserved,
+		Reserved:    reserved,
+		DeviceID:    r.ID,
+		Token:       r.Token,
+		AccountType: r.Account.AccountType,
 	}, nil
+}
+
+type accountResponse struct {
+	AccountType string `json:"account_type"`
+	PremiumData int64  `json:"premium_data"`
+	Quota       int64  `json:"quota"`
+	License     string `json:"license"`
+}
+
+// ApplyLicense binds a WARP+ license key to the registered device (same flow as wgcf:
+// PUT /reg/{id}/account, then GET it back) and updates w.License / w.AccountType.
+func ApplyLicense(w *settings.Warp, license string) error {
+	license = strings.TrimSpace(license)
+	if license == "" {
+		return fmt.Errorf("key WARP+ trống")
+	}
+	if w == nil || w.DeviceID == "" || w.Token == "" {
+		return fmt.Errorf("tài khoản WARP cũ (thiếu device id/token), hãy đăng ký lại")
+	}
+	body, _ := json.Marshal(map[string]string{"license": license})
+	raw, status, err := authRequest(http.MethodPut, w, body)
+	if err != nil {
+		return fmt.Errorf("áp dụng key WARP+: %w", err)
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("key WARP+ không hợp lệ (HTTP %d): %s", status, strings.TrimSpace(string(raw)))
+	}
+
+	raw, status, err = authRequest(http.MethodGet, w, nil)
+	if err != nil {
+		return fmt.Errorf("đọc thông tin tài khoản WARP: %w", err)
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("đọc thông tin tài khoản WARP: HTTP %d: %s", status, strings.TrimSpace(string(raw)))
+	}
+	var acc accountResponse
+	if err := json.Unmarshal(raw, &acc); err != nil {
+		return fmt.Errorf("đọc thông tin tài khoản WARP: decode: %w", err)
+	}
+	w.License = license
+	if acc.AccountType != "" {
+		w.AccountType = acc.AccountType
+	}
+	return nil
+}
+
+func authRequest(method string, w *settings.Warp, body []byte) ([]byte, int, error) {
+	var rd io.Reader
+	if body != nil {
+		rd = bytes.NewReader(body)
+	}
+	req, err := http.NewRequest(method, apiBase+"/reg/"+w.DeviceID+"/account", rd)
+	if err != nil {
+		return nil, 0, err
+	}
+	setAPIHeaders(req)
+	req.Header.Set("Authorization", "Bearer "+w.Token)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	return raw, resp.StatusCode, err
 }
