@@ -23,70 +23,248 @@
             <span id="toggle-label" class="toggle-label">Kết nối</span>
         </button>
         <div id="duration" class="duration">&nbsp;</div>
+        <div id="server-now" class="server-now" hidden></div>
+        <div id="stats" class="stats" hidden>
+            <div class="stat">
+                <span class="stat-arrow down" aria-hidden="true">↓</span>
+                <span><b id="st-down">0 B/s</b><small id="st-down-total">0 B</small></span>
+            </div>
+            <div class="stat">
+                <span class="stat-arrow up" aria-hidden="true">↑</span>
+                <span><b id="st-up">0 B/s</b><small id="st-up-total">0 B</small></span>
+            </div>
+        </div>
         <div id="error" class="error" hidden></div>
     </section>
 
-    <section class="block">
-        <div class="block-title">Chế độ</div>
-        <div id="modes" class="modes" role="radiogroup">
-            <label class="mode" data-mode="bypass">
-                <input type="radio" name="mode" value="bypass">
-                <span class="mode-name">Vượt chặn</span>
-                <span class="mode-desc">DNS mã hoá (DoH) + chống DPI. Không cần server, không đổi IP.</span>
-            </label>
-            <label class="mode" data-mode="warp">
-                <input type="radio" name="mode" value="warp">
-                <span class="mode-name">Cloudflare WARP</span>
-                <span class="mode-desc">Miễn phí, đổi IP, ẩn IP với website.</span>
-            </label>
-            <label class="mode" data-mode="custom">
-                <input type="radio" name="mode" value="custom">
-                <span class="mode-name">Server riêng</span>
-                <span class="mode-desc">Dùng link VLESS từ server của bạn.</span>
-            </label>
+    <div id="blocked" class="alert danger" hidden>
+        <b id="blocked-title">Kill switch đang chặn mạng</b>
+        <p id="blocked-text">VPN bị rớt nên mọi kết nối Internet đang bị chặn để không lộ IP thật.</p>
+        <div class="row">
+            <button id="blocked-release" class="btn" type="button">Ngắt kết nối</button>
+            <button id="blocked-retry" class="btn ghost" type="button">Kết nối lại</button>
         </div>
+    </div>
 
-        <div id="warp-panel" class="sub" hidden>
+    <div id="pending" class="alert info" hidden>
+        <span>Cài đặt đã thay đổi — Kết nối lại để áp dụng</span>
+        <button id="pending-reconnect" class="btn sm" type="button">Kết nối lại</button>
+    </div>
+
+    <div id="cfg-warnings" class="warnings" hidden></div>
+
+    <nav class="tabs" role="tablist">
+        <button class="tab" type="button" role="tab" data-tab="conn">Kết nối</button>
+        <button class="tab" type="button" role="tab" data-tab="route">Định tuyến</button>
+        <button class="tab" type="button" role="tab" data-tab="app">Ứng dụng</button>
+        <button class="tab" type="button" role="tab" data-tab="tools">Công cụ</button>
+    </nav>
+
+    <div id="save-msg" class="sub-msg bad" hidden></div>
+
+    <!-- ============ Tab: Kết nối ============ -->
+    <div class="pane" data-pane="conn">
+        <section class="block">
+            <div class="block-title">Chế độ</div>
+            <div id="modes" class="modes" role="radiogroup">
+                <label class="mode" data-mode="bypass">
+                    <input type="radio" name="mode" value="bypass">
+                    <span class="mode-name">Vượt chặn</span>
+                    <span class="mode-desc">DNS mã hoá (DoH) + chống DPI. Không cần server, không đổi IP.</span>
+                </label>
+                <label class="mode" data-mode="warp">
+                    <input type="radio" name="mode" value="warp">
+                    <span class="mode-name">Cloudflare WARP</span>
+                    <span class="mode-desc">Miễn phí, đổi IP, ẩn IP với website.</span>
+                </label>
+                <label class="mode" data-mode="custom">
+                    <input type="radio" name="mode" value="custom">
+                    <span class="mode-name">Server riêng</span>
+                    <span class="mode-desc">VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC hoặc subscription.</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Bypass -->
+        <section id="bypass-panel" class="block" hidden>
+            <div class="block-title">Chống DPI</div>
+            <label class="check">
+                <input id="dpi" type="checkbox">
+                <span>Bật GoodbyeDPI<small>Vượt chặn theo SNI / DPI của nhà mạng</small></span>
+            </label>
+            <div id="dpi-opts" class="sub">
+                <label class="field">
+                    <span>Kiểu</span>
+                    <select id="dpi-preset">
+                        <option value="9">9 — mặc định, chống DPI mạnh + gói giả</option>
+                        <option value="9q">9q — như 9 + chặn QUIC (giúp YouTube)</option>
+                        <option value="5">5 — nhẹ</option>
+                        <option value="custom">Tuỳ chỉnh…</option>
+                    </select>
+                </label>
+                <label id="dpi-args-row" class="field" hidden>
+                    <span>Tham số GoodbyeDPI</span>
+                    <input id="dpi-args" type="text" spellcheck="false" placeholder="-5 --dns-addr 1.1.1.1 --dns-port 53">
+                </label>
+            </div>
+        </section>
+
+        <!-- WARP -->
+        <section id="warp-panel" class="block" hidden>
+            <div class="block-title">Tài khoản WARP</div>
             <div id="warp-none">
                 <button id="warp-register" class="btn" type="button">Đăng ký WARP</button>
             </div>
-            <div id="warp-has" class="warp-has" hidden>
-                <span class="ok-dot" aria-hidden="true"></span>
-                <span>Đã có tài khoản WARP</span>
-                <button id="warp-reregister" class="link" type="button">đăng ký lại</button>
+            <div id="warp-has" hidden>
+                <div class="warp-has">
+                    <span class="ok-dot" aria-hidden="true"></span>
+                    <span>Đã có tài khoản</span>
+                    <span id="warp-type" class="badge"></span>
+                    <button id="warp-reregister" class="link" type="button">đăng ký lại</button>
+                </div>
+                <div class="row">
+                    <input id="warp-key" type="text" spellcheck="false" placeholder="Key WARP+ (xxxxxxxx-xxxxxxxx-xxxxxxxx)">
+                    <button id="warp-key-apply" class="btn ghost" type="button">Áp dụng</button>
+                </div>
+                <div class="kv">
+                    <span>Endpoint</span>
+                    <code id="warp-endpoint">Mặc định</code>
+                </div>
+                <div class="row">
+                    <button id="warp-scan" class="btn ghost" type="button">Quét endpoint</button>
+                    <span id="warp-scan-hint" class="hint"></span>
+                </div>
+                <div id="warp-scan-list" class="pick-list" hidden></div>
             </div>
             <div id="warp-msg" class="sub-msg" hidden></div>
+        </section>
+
+        <!-- Custom -->
+        <section id="custom-panel" class="block" hidden>
+            <div class="block-title row-title">
+                <span>Server</span>
+                <button id="srv-ping" class="link" type="button">ping</button>
+            </div>
+            <div id="srv-list" class="srv-list" role="radiogroup"></div>
+            <details id="srv-add-box" class="inner">
+                <summary>Thêm server</summary>
+                <textarea id="srv-add" rows="3" spellcheck="false"
+                          placeholder="Dán một hoặc nhiều link, mỗi dòng một link&#10;vless:// vmess:// trojan:// ss:// hysteria2:// hy2:// tuic://"></textarea>
+                <div class="row end">
+                    <button id="srv-add-btn" class="btn sm" type="button">Thêm</button>
+                </div>
+            </details>
+            <div id="srv-msg" class="sub-msg" hidden></div>
+        </section>
+
+        <section id="sub-panel" class="block" hidden>
+            <div class="block-title row-title">
+                <span>Subscription</span>
+                <button id="sub-refresh" class="link" type="button">cập nhật tất cả</button>
+            </div>
+            <div id="sub-list" class="sub-list"></div>
+            <details id="sub-add-box" class="inner">
+                <summary>Thêm subscription</summary>
+                <input id="sub-url" type="text" spellcheck="false" placeholder="https://…">
+                <div class="row">
+                    <input id="sub-name" type="text" spellcheck="false" placeholder="Tên (tuỳ chọn)">
+                    <button id="sub-add-btn" class="btn sm" type="button">Thêm</button>
+                </div>
+            </details>
+            <div id="sub-msg" class="sub-msg" hidden></div>
+        </section>
+    </div>
+
+    <!-- ============ Tab: Định tuyến ============ -->
+    <div class="pane" data-pane="route" hidden>
+        <section id="routing-block" class="block">
+            <div class="block-title">Định tuyến</div>
+            <div id="routing-note" class="hint note" hidden>Chỉ áp dụng cho chế độ WARP và Server riêng.</div>
+            <label class="check">
+                <input id="r-direct-vn" type="checkbox">
+                <span>Web Việt Nam đi thẳng (không qua VPN)<small>Tên miền .vn và IP Việt Nam</small></span>
+            </label>
+            <label class="field">
+                <span>Tên miền đi thẳng <small>(mỗi dòng một tên miền)</small></span>
+                <textarea id="r-direct-domains" rows="3" spellcheck="false" placeholder="example.com"></textarea>
+            </label>
+            <label class="field">
+                <span>Tên miền luôn qua VPN <small>(ưu tiên hơn “Web Việt Nam”)</small></span>
+                <textarea id="r-proxy-domains" rows="3" spellcheck="false" placeholder="openai.com"></textarea>
+            </label>
+            <label class="field">
+                <span>Ứng dụng đi thẳng <small>(tên file .exe)</small></span>
+                <textarea id="r-direct-procs" rows="2" spellcheck="false" placeholder="steam.exe"></textarea>
+            </label>
+        </section>
+        <section class="block">
+            <div class="block-title">DNS &amp; mạng</div>
+            <label class="field">
+                <span>DoH server</span>
+                <input id="doh" type="text" spellcheck="false" placeholder="https://1.1.1.1/dns-query">
+            </label>
+            <label class="check">
+                <input id="lan" type="checkbox">
+                <span>Không đi qua VPN cho mạng LAN</span>
+            </label>
+        </section>
+    </div>
+
+    <!-- ============ Tab: Ứng dụng ============ -->
+    <div class="pane" data-pane="app" hidden>
+        <section class="block">
+            <div class="block-title">Bảo vệ</div>
+            <label class="check">
+                <input id="kill-switch" type="checkbox">
+                <span>Kill switch — chặn mạng khi VPN rớt, chống lộ IP<small>Áp dụng cho WARP và Server riêng</small></span>
+            </label>
+            <label class="check">
+                <input id="auto-reconnect" type="checkbox">
+                <span>Tự kết nối lại khi bị rớt</span>
+            </label>
+        </section>
+        <section class="block">
+            <div class="block-title">Khởi động</div>
+            <label class="check">
+                <input id="auto-connect" type="checkbox">
+                <span>Tự kết nối khi mở ứng dụng</span>
+            </label>
+            <label class="check">
+                <input id="start-win" type="checkbox">
+                <span>Khởi động cùng Windows</span>
+            </label>
+            <label class="check indent" id="start-min-row">
+                <input id="start-min" type="checkbox">
+                <span>Ẩn xuống khay khi khởi động cùng Windows</span>
+            </label>
+            <label class="check">
+                <input id="close-tray" type="checkbox">
+                <span>Bấm X thì thu nhỏ xuống khay (không thoát)</span>
+            </label>
+        </section>
+        <div class="row">
+            <button id="open-data" class="btn ghost" type="button">Mở thư mục dữ liệu</button>
+            <button id="quit" class="btn ghost danger" type="button">Thoát hẳn</button>
         </div>
+    </div>
 
-        <div id="custom-panel" class="sub" hidden>
-            <textarea id="custom-link" rows="3" spellcheck="false"
-                      placeholder="vless://uuid@host:443?security=reality..."></textarea>
-        </div>
-    </section>
+    <!-- ============ Tab: Công cụ ============ -->
+    <div class="pane" data-pane="tools" hidden>
+        <section class="block">
+            <div class="block-title row-title">
+                <span>Kiểm tra kết nối</span>
+            </div>
+            <button id="check-btn" class="btn" type="button">Kiểm tra kết nối</button>
+            <div id="check-out" class="check-out" hidden></div>
+        </section>
 
-    <details class="block adv" id="adv">
-        <summary>Nâng cao</summary>
-        <label class="field">
-            <span>DoH server</span>
-            <input id="doh" type="text" spellcheck="false" placeholder="https://1.1.1.1/dns-query">
-        </label>
-        <label class="check" id="dpi-row">
-            <input id="dpi" type="checkbox">
-            <span>Chống DPI (GoodbyeDPI)<small>Chỉ có tác dụng ở chế độ Vượt chặn</small></span>
-        </label>
-        <label class="check">
-            <input id="lan" type="checkbox">
-            <span>Không đi qua VPN cho mạng LAN</span>
-        </label>
-        <div id="save-msg" class="sub-msg" hidden></div>
-    </details>
-
-    <details class="block log" id="log-box">
-        <summary>Nhật ký <span id="log-count" class="count"></span>
-            <button id="log-clear" class="link" type="button">xoá</button>
-        </summary>
-        <pre id="log"></pre>
-    </details>
+        <details class="block log" id="log-box" open>
+            <summary>Nhật ký <span id="log-count" class="count"></span>
+                <button id="log-clear" class="link" type="button">xoá</button>
+            </summary>
+            <pre id="log"></pre>
+        </details>
+    </div>
 </div>
 <script src="./src/main.js" type="module"></script>
 </body>

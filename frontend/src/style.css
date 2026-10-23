@@ -10,6 +10,7 @@
     --accent-dim: rgba(229, 57, 53, 0.14);
     --ok: #43a047;
     --ok-dim: rgba(67, 160, 71, 0.14);
+    --warn: #ffb300;
     --warn-dim: rgba(255, 179, 0, 0.10);
     --radius: 10px;
     color-scheme: dark;
@@ -30,7 +31,18 @@ html, body {
 
 [hidden] { display: none !important; }
 
-button, input, textarea { font: inherit; color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+
+select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 8px;
+    outline: none;
+}
+select:focus { border-color: var(--accent); }
+select:disabled { opacity: .55; }
 
 input[type="text"], textarea {
     width: 100%;
