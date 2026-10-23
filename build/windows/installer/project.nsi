@@ -96,13 +96,13 @@ Section
 
     !insertmacro wails.files
 
-    # Runtime helpers (scriptsetch-bins.ps1 must have been run before building).
-    SetOutPath "$INSTDIRin"
-    File "..\..\..in\sing-box.exe"
-    File "..\..\..in\goodbyedpi.exe"
-    File "..\..\..in\WinDivert.dll"
-    File "..\..\..in\WinDivert64.sys"
-    File /nonfatal "..\..\..in\geoip-vn.srs"
+    # Runtime helpers (scripts\fetch-bins.ps1 must have been run before building).
+    SetOutPath "$INSTDIR\bin"
+    File "..\..\..\bin\sing-box.exe"
+    File "..\..\..\bin\goodbyedpi.exe"
+    File "..\..\..\bin\WinDivert.dll"
+    File "..\..\..\bin\WinDivert64.sys"
+    File /nonfatal "..\..\..\bin\geoip-vn.srs"
     SetOutPath $INSTDIR
 
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
