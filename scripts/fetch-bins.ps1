@@ -1,38 +1,57 @@
 # Downloads the runtime binaries (sing-box, GoodbyeDPI) into <project>\bin.
+# Versions are pinned and verified by SHA-256: sing-box changes its config format
+# between releases, so bump these together with internal/singbox and its tests.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+$assets = @(
+    @{
+        Name   = 'sing-box'
+        Url    = 'https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-windows-amd64.zip'
+        Sha256 = 'd8b86ef58936dba9230ec6a57ffa4243933f3c14ef4809828b6c553440ed1518'
+    },
+    @{
+        Name   = 'GoodbyeDPI'
+        Url    = 'https://github.com/ValdikSS/GoodbyeDPI/releases/download/0.2.2/goodbyedpi-0.2.2.zip'
+        Sha256 = '00a2f8b99cd817f8c7fc4c449033015f039d18af213de78cb66bf202277c0628'
+    }
+)
+# Vietnamese IP ranges for "Web Việt Nam đi thẳng"; refreshed weekly upstream, so not pinned.
+# Optional: without it sing-box downloads the same file at connect time.
+$geoipUrl = 'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-vn.srs'
 
 $root = Split-Path -Parent $PSScriptRoot
 $bin = Join-Path $root 'bin'
 $tmp = Join-Path $env:TEMP ('rcv-fetch-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Force $bin, $tmp | Out-Null
 
-function Get-LatestAsset($repo, $pattern) {
-    $rel = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'redcyclone-vpn' }
-    $asset = $rel.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
-    if (-not $asset) { throw "No asset matching '$pattern' in $repo $($rel.tag_name)" }
-    Write-Host "$repo $($rel.tag_name): $($asset.name)"
-    return $asset
-}
-
-function Expand-Asset($asset) {
-    $zip = Join-Path $tmp $asset.name
-    Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
-    $dir = Join-Path $tmp ([IO.Path]::GetFileNameWithoutExtension($asset.name))
+function Get-Verified($a) {
+    $zip = Join-Path $tmp ([IO.Path]::GetFileName($a.Url))
+    Write-Host "Downloading $($a.Name): $($a.Url)"
+    Invoke-WebRequest $a.Url -OutFile $zip -UseBasicParsing
+    $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+    if ($hash -ne $a.Sha256) { throw "$($a.Name): SHA-256 mismatch (got $hash, want $($a.Sha256))" }
+    $dir = Join-Path $tmp ([IO.Path]::GetFileNameWithoutExtension($zip))
     Expand-Archive $zip -DestinationPath $dir -Force
     return $dir
 }
 
 try {
     # sing-box: the windows-amd64 build ships with an embedded wintun driver.
-    $dir = Expand-Asset (Get-LatestAsset 'SagerNet/sing-box' '^sing-box-[\d.]+-windows-amd64\.zip$')
+    $dir = Get-Verified $assets[0]
     Get-ChildItem $dir -Recurse -Filter 'sing-box.exe' | Copy-Item -Destination $bin -Force
 
     # GoodbyeDPI: x86_64 build + WinDivert driver.
-    $dir = Expand-Asset (Get-LatestAsset 'ValdikSS/GoodbyeDPI' '^goodbyedpi-[\d.]+\.zip$')
+    $dir = Get-Verified $assets[1]
     $x64 = Get-ChildItem $dir -Recurse -Directory -Filter 'x86_64' | Select-Object -First 1
     Copy-Item (Join-Path $x64.FullName '*') -Destination $bin -Force
+
+    try {
+        Invoke-WebRequest $geoipUrl -OutFile (Join-Path $bin 'geoip-vn.srs') -UseBasicParsing
+    } catch {
+        Write-Warning "geoip-vn.srs download failed (optional): $_"
+    }
 
     Get-ChildItem $bin | Select-Object Name, Length | Format-Table -AutoSize
 }

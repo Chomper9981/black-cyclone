@@ -96,6 +96,15 @@ Section
 
     !insertmacro wails.files
 
+    # Runtime helpers (scriptsetch-bins.ps1 must have been run before building).
+    SetOutPath "$INSTDIRin"
+    File "..\..\..in\sing-box.exe"
+    File "..\..\..in\goodbyedpi.exe"
+    File "..\..\..in\WinDivert.dll"
+    File "..\..\..in\WinDivert64.sys"
+    File /nonfatal "..\..\..in\geoip-vn.srs"
+    SetOutPath $INSTDIR
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 
@@ -109,6 +118,12 @@ Section "uninstall"
     !insertmacro wails.setShellContext
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
+
+    # Stop leftovers and remove the "start with Windows" logon task.
+    nsExec::Exec 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
+    nsExec::Exec 'taskkill /F /IM sing-box.exe'
+    nsExec::Exec 'taskkill /F /IM goodbyedpi.exe'
+    nsExec::Exec 'schtasks /Delete /TN "RedCyclone VPN" /F'
 
     RMDir /r $INSTDIR
 
