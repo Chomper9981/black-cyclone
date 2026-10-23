@@ -23,7 +23,8 @@ func (a *App) RegisterWarp() (settings.Settings, error) {
 	w, err := warp.Register()
 	if err != nil {
 		a.log("Đăng ký WARP thất bại: " + err.Error())
-		return settings.Load()
+		s, _ := settings.Load()
+		return s, err
 	}
 	s, err := a.mutateSettings(func(s *settings.Settings) error {
 		// Keep a previously scanned endpoint.
@@ -109,7 +110,8 @@ func (a *App) SetWarpEndpoint(ip string, port int) (settings.Settings, error) {
 func (a *App) AddServers(text string) (settings.Settings, error) {
 	links := share.ParseLinks(text)
 	if len(links) == 0 {
-		return settings.Load()
+		s, _ := settings.Load()
+		return s, errors.New("không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)")
 	}
 	var bad []string
 	s, err := a.mutateSettings(func(s *settings.Settings) error {
@@ -181,7 +183,8 @@ func (a *App) RenameServer(id, name string) (settings.Settings, error) {
 func (a *App) AddSubscription(url, name string) (settings.Settings, error) {
 	url = strings.TrimSpace(url)
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return settings.Load()
+		s, _ := settings.Load()
+		return s, errors.New("URL subscription phải bắt đầu bằng http:// hoặc https://")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
