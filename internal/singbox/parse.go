@@ -1,12 +1,7 @@
 package singbox
 
-import "redcyclone-vpn/internal/vless"
+import "redcyclone-vpn/internal/share"
 
 func parseLink(link, tag string) (map[string]any, error) {
-	ob, err := vless.ParseOutbound(link)
-	if err != nil {
-		return nil, err
-	}
-	ob["tag"] = tag
-	return ob, nil
+	return share.ParseOutbound(link, tag)
 }
