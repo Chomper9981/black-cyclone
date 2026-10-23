@@ -361,8 +361,8 @@ details.inner > input + .row { margin-top: 6px; }
 .help-text {
     margin: 2px 0 8px;
     padding: 8px 10px;
-    border-left: 2px solid var(--accent);
-    border-radius: 0 6px 6px 0;
+    border: 1px solid var(--line);
+    border-radius: 6px;
     background: var(--surface-2);
     font-size: 12px;
     line-height: 1.5;
