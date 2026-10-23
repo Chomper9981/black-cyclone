@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -76,6 +77,7 @@ type App struct {
 	procGen  int // bumped whenever helpers start/stop; stale exit callbacks compare against it
 	session  int // bumped on user Connect/Disconnect; cancels reconnect loops
 	quitting bool
+	notifyOn atomic.Bool // mirrors Settings.Notifications; read without a.mu
 
 	setMu sync.Mutex // serialises settings read-modify-write
 
@@ -87,7 +89,9 @@ type App struct {
 const logKeep = 500
 
 func NewApp(autostart bool) *App {
-	return &App{state: StateOff, autostart: autostart}
+	a := &App{state: StateOff, autostart: autostart}
+	a.notifyOn.Store(true)
+	return a
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -114,6 +118,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.statsLoop()
 
 	if s, err := settings.Load(); err == nil {
+		a.notifyOn.Store(s.Notifications)
 		a.syncAutostart(s)
 		if s.AutoConnect {
 			go func() {
@@ -193,9 +198,9 @@ func (a *App) SaveSettings(s settings.Settings) error {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.notifyOn.Store(s.Notifications)
 	if a.state != StateOff {
-		// Failure handling reads these from a.conf, so they apply immediately.
-		a.conf.KillSwitch, a.conf.AutoReconnect = s.KillSwitch, s.AutoReconnect
+		a.applyLiveLocked(s)
 	}
 	if a.state == StateOn && a.conf.Mode == settings.ModeCustom && a.conf.SelectedServer != s.SelectedServer && a.clash != nil {
 		member := singbox.TagAuto
@@ -258,18 +263,68 @@ func (a *App) syncAutostart(s settings.Settings) {
 
 // networkKey is the part of the settings that requires a reconnect to apply.
 func networkKey(s settings.Settings) string {
-	s.SelectedServer = ""
-	s.AutoConnect, s.StartWithWindows, s.StartMinimized, s.CloseToTray = false, false, false, false
-	s.KillSwitch, s.AutoReconnect, s.Notifications = false, false, false
-	s.Subscriptions = nil
+	copyLive(&s, settings.Settings{})
+	s.SelectedServer = "" // switched live through the Clash API
 	if s.Mode != settings.ModeCustom {
 		s.Servers = nil
+		s.InterruptOnSwitch = false
 	}
 	if s.Mode != settings.ModeWarp {
 		s.Warp = nil
 	}
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+// copyLive copies the settings that take effect without a reconnect (exactly
+// the ones networkKey ignores) from src into dst.
+func copyLive(dst *settings.Settings, src settings.Settings) {
+	dst.KillSwitch, dst.AutoReconnect, dst.Notifications = src.KillSwitch, src.AutoReconnect, src.Notifications
+	dst.AutoConnect, dst.StartWithWindows, dst.StartMinimized, dst.CloseToTray =
+		src.AutoConnect, src.StartWithWindows, src.StartMinimized, src.CloseToTray
+	dst.Subscriptions = src.Subscriptions
+}
+
+// applyLiveLocked updates the running connection's behaviour settings and acts
+// on kill switch / auto-reconnect changes made while the tunnel is down.
+func (a *App) applyLiveLocked(s settings.Settings) {
+	prev := a.conf
+	copyLive(&a.conf, s)
+	protect := a.conf.KillSwitch && a.conf.Mode != settings.ModeBypass
+
+	switch a.state {
+	case StateReconnecting:
+		if !a.conf.AutoReconnect {
+			a.session++ // stops the retry loop
+			a.log("Đã dừng tự kết nối lại.")
+			if a.blocking && protect {
+				a.state = StateBlocked
+			} else {
+				a.stopLocked()
+				a.state = StateOff
+			}
+			return
+		}
+		if a.blocking && !protect {
+			a.stopLocked() // retries continue, just without blocking
+			a.log("Kill switch đã tắt: bỏ chặn mạng.")
+		} else if !a.blocking && protect {
+			if err := a.startKillSwitchLocked(); err != nil {
+				a.log("Không bật được kill switch: " + err.Error())
+			} else {
+				a.log("Kill switch đã bật: đang chặn mạng.")
+			}
+		}
+	case StateBlocked:
+		if !protect {
+			a.stopLocked()
+			a.state = StateOff
+			a.log("Kill switch đã tắt: bỏ chặn mạng.")
+		} else if a.conf.AutoReconnect && !prev.AutoReconnect {
+			a.state = StateReconnecting
+			go a.reconnectLoop(a.session)
+		}
+	}
 }
 
 /* ---------------- Status ---------------- */
@@ -664,7 +719,7 @@ func (a *App) notify(title, body string) {
 	if a.ctx == nil {
 		return
 	}
-	if s, err := settings.Load(); err == nil && !s.Notifications {
+	if !a.notifyOn.Load() {
 		return
 	}
 	_ = runtime.SendNotification(a.ctx, runtime.NotificationOptions{

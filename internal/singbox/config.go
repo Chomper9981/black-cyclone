@@ -235,6 +235,8 @@ func serverOutbounds(s settings.Settings) ([]any, []string, error) {
 			"url":       "https://www.gstatic.com/generate_204",
 			"interval":  "3m",
 			"tolerance": 50,
+			// Same choice as the selector: when auto picks another server, move live connections too.
+			"interrupt_exist_connections": s.InterruptOnSwitch,
 		})
 		choices = append([]string{TagAuto}, tags...)
 		if selected == "" {
