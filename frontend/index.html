@@ -25,11 +25,11 @@
         <div id="duration" class="duration">&nbsp;</div>
         <div id="server-now" class="server-now" hidden></div>
         <div id="stats" class="stats" hidden>
-            <div class="stat">
+            <div class="stat" title="Tốc độ tải xuống hiện tại / tổng đã tải từ lúc kết nối">
                 <span class="stat-arrow down" aria-hidden="true">↓</span>
                 <span><b id="st-down">0 B/s</b><small id="st-down-total">0 B</small></span>
             </div>
-            <div class="stat">
+            <div class="stat" title="Tốc độ tải lên hiện tại / tổng đã gửi từ lúc kết nối">
                 <span class="stat-arrow up" aria-hidden="true">↑</span>
                 <span><b id="st-up">0 B/s</b><small id="st-up-total">0 B</small></span>
             </div>
@@ -64,8 +64,18 @@
 
     <!-- ============ Tab: Kết nối ============ -->
     <div class="pane" data-pane="conn">
+        <p class="tab-intro">Chọn cách vượt chặn. Cài đặt riêng của chế độ đang chọn hiện ở bên dưới. Bấm <span class="help-icon" aria-hidden="true">?</span> cạnh mỗi mục để xem giải thích chi tiết.</p>
+
         <section class="block">
-            <div class="block-title">Chế độ</div>
+            <div class="block-title row-title">
+                <span>Chế độ</span>
+                <button class="help" type="button" data-help="h-modes" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-modes" class="help-text" hidden>
+                <p><b>Vượt chặn</b> — chỉ mã hoá DNS và làm rối gói tin để qua mặt bộ lọc của nhà mạng. Nhanh nhất, không cần server, không tốn băng thông của ai. Nhưng website vẫn thấy IP nhà mạng của bạn, và không vượt được trang bị chặn theo IP.</p>
+                <p><b>Cloudflare WARP</b> — toàn bộ traffic đi qua mạng Cloudflare (miễn phí, mã hoá WireGuard). Website thấy IP Cloudflare thay vì IP của bạn. Một số trang chặn hoặc bắt captcha với IP WARP; tốc độ phụ thuộc giờ cao điểm.</p>
+                <p><b>Server riêng</b> — dùng VPS hoặc dịch vụ VPN bạn có (link chia sẻ hoặc subscription). Vượt được mọi kiểu chặn, chọn được quốc gia; tốc độ và độ ổn định tuỳ server.</p>
+            </div>
             <div id="modes" class="modes" role="radiogroup">
                 <label class="mode" data-mode="bypass">
                     <input type="radio" name="mode" value="bypass">
@@ -88,22 +98,38 @@
         <!-- Bypass -->
         <section id="bypass-panel" class="block" hidden>
             <div class="block-title">Chống DPI</div>
-            <label class="check">
-                <input id="dpi" type="checkbox">
-                <span>Bật GoodbyeDPI<small>Vượt chặn theo SNI / DPI của nhà mạng</small></span>
-            </label>
+            <div class="opt">
+                <label class="check">
+                    <input id="dpi" type="checkbox">
+                    <span>Bật GoodbyeDPI<small>Làm rối gói tin để bộ lọc của nhà mạng không đọc được tên trang</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-dpi" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-dpi" class="help-text" hidden>
+                <p>Khi bạn mở một trang HTTPS, tên trang (SNI) nằm ở dạng chữ thường trong gói tin đầu tiên. Bộ lọc DPI của nhà mạng đọc tên đó để chặn hoặc bóp băng thông. GoodbyeDPI chia nhỏ / làm sai lệch gói tin này để bộ lọc không nhận ra, còn website vẫn nhận đủ và hoạt động bình thường.</p>
+                <p>Tắt đi nếu một trang chỉ hỏng khi bật nó. Chỉ có tác dụng ở chế độ Vượt chặn.</p>
+            </div>
             <div id="dpi-opts" class="sub">
-                <label class="field">
-                    <span>Kiểu</span>
-                    <select id="dpi-preset">
+                <div class="field">
+                    <div class="row-title">
+                        <span>Kiểu</span>
+                        <button class="help" type="button" data-help="h-dpi-preset" aria-expanded="false" title="Giải thích">?</button>
+                    </div>
+                    <select id="dpi-preset" aria-label="Kiểu GoodbyeDPI">
                         <option value="9">9 — mặc định, chống DPI mạnh + gói giả</option>
                         <option value="9q">9q — như 9 + chặn QUIC (giúp YouTube)</option>
                         <option value="5">5 — nhẹ</option>
                         <option value="custom">Tuỳ chỉnh…</option>
                     </select>
-                </label>
+                </div>
+                <div id="h-dpi-preset" class="help-text" hidden>
+                    <p><b>9</b> — mạnh nhất: chia nhỏ gói tin và gửi thêm gói giả (sai checksum / sai số thứ tự) để đánh lừa bộ lọc. Nên dùng mặc định.</p>
+                    <p><b>9q</b> — như 9 và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà GoodbyeDPI xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
+                    <p><b>5</b> — nhẹ, không gửi gói giả. Dùng nếu kiểu 9 làm vài trang bị lỗi.</p>
+                    <p><b>Tuỳ chỉnh</b> — tự nhập tham số GoodbyeDPI (xem <code>goodbyedpi.exe --help</code>).</p>
+                </div>
                 <label id="dpi-args-row" class="field" hidden>
-                    <span>Tham số GoodbyeDPI</span>
+                    <span>Tham số GoodbyeDPI <small>(cách nhau bằng dấu cách)</small></span>
                     <input id="dpi-args" type="text" spellcheck="false" placeholder="-5 --dns-addr 1.1.1.1 --dns-port 53">
                 </label>
             </div>
@@ -111,7 +137,14 @@
 
         <!-- WARP -->
         <section id="warp-panel" class="block" hidden>
-            <div class="block-title">Tài khoản WARP</div>
+            <div class="block-title row-title">
+                <span>Tài khoản WARP</span>
+                <button class="help" type="button" data-help="h-warp" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-warp" class="help-text" hidden>
+                <p><b>Đăng ký</b> tạo một tài khoản WARP miễn phí, ẩn danh (không cần email). Khoá được lưu mã hoá trên máy này. <b>Đăng ký lại</b> tạo tài khoản mới (IP ảo mới) và bỏ tài khoản cũ.</p>
+                <p><b>Key WARP+</b>: nếu bạn có key WARP+ (mua trong app 1.1.1.1 hoặc được chia sẻ), dán vào để dùng mạng ưu tiên, thường nhanh hơn bản miễn phí.</p>
+            </div>
             <div id="warp-none">
                 <button id="warp-register" class="btn" type="button">Đăng ký WARP</button>
             </div>
@@ -129,6 +162,11 @@
                 <div class="kv">
                     <span>Endpoint</span>
                     <code id="warp-endpoint">Mặc định</code>
+                    <button class="help" type="button" data-help="h-endpoint" aria-expanded="false" title="Giải thích">?</button>
+                </div>
+                <div id="h-endpoint" class="help-text" hidden>
+                    <p>Endpoint là địa chỉ máy chủ Cloudflare (IP:port) mà máy bạn kết nối WireGuard tới. Nhà mạng đôi khi chặn hoặc bóp một số IP / port, khiến WARP không kết nối được hoặc rất chậm.</p>
+                    <p><b>Quét endpoint</b> thử khoảng 250 địa chỉ bằng handshake WireGuard thật (mất vài giây) và liệt kê những cái trả lời nhanh nhất; bấm vào một dòng để dùng nó. Cần ngắt kết nối trước khi quét.</p>
                 </div>
                 <div class="row">
                     <button id="warp-scan" class="btn ghost" type="button">Quét endpoint</button>
@@ -143,24 +181,52 @@
         <section id="custom-panel" class="block" hidden>
             <div class="block-title row-title">
                 <span>Server</span>
-                <button id="srv-ping" class="link" type="button">ping</button>
+                <span class="row-actions">
+                    <button id="srv-ping" class="link" type="button">ping</button>
+                    <button class="help" type="button" data-help="h-servers" aria-expanded="false" title="Giải thích">?</button>
+                </span>
+            </div>
+            <div id="h-servers" class="help-text" hidden>
+                <p>Bấm vào một server để dùng nó. <b>Tự động</b>: cứ 3 phút đo độ trễ của mọi server và dùng server nhanh nhất. Đổi server khi đang kết nối có hiệu lực ngay, không cần ngắt.</p>
+                <p><b>Ping</b>: khi chưa kết nối, đo thời gian mở kết nối TCP tới server (Hysteria2 / TUIC dùng UDP nên không đo được, hiện “—”). Khi đã kết nối, đo thời gian tải một trang thật qua từng server — chính xác hơn.</p>
+                <p>Đổi tên: bấm vào tên server. Xoá: bấm ✕ hai lần.</p>
             </div>
             <div id="srv-list" class="srv-list" role="radiogroup"></div>
             <details id="srv-add-box" class="inner">
                 <summary>Thêm server</summary>
+                <p class="hint">Dán một hoặc nhiều link chia sẻ (mỗi dòng một link) lấy từ nhà cung cấp hoặc từ panel VPS của bạn (3x-ui, Marzban, Hiddify…). Link trùng sẽ được bỏ qua.</p>
                 <textarea id="srv-add" rows="3" spellcheck="false"
-                          placeholder="Dán một hoặc nhiều link, mỗi dòng một link&#10;vless:// vmess:// trojan:// ss:// hysteria2:// hy2:// tuic://"></textarea>
+                          placeholder="vless:// vmess:// trojan:// ss:// hysteria2:// hy2:// tuic://"></textarea>
                 <div class="row end">
                     <button id="srv-add-btn" class="btn sm" type="button">Thêm</button>
                 </div>
             </details>
+            <div class="opt">
+                <label class="check">
+                    <input id="interrupt-switch" type="checkbox">
+                    <span>Ngắt kết nối cũ khi đổi server<small>Mọi kết nối chuyển ngay sang server mới</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-interrupt" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-interrupt" class="help-text" hidden>
+                <p><b>Bật</b>: khi đổi server (bằng tay hoặc do chế độ Tự động), các kết nối đang mở — tab đang tải, game, cuộc gọi — bị cắt và tự mở lại qua server mới, nên IP đổi ngay lập tức.</p>
+                <p><b>Tắt</b>: kết nối cũ chạy tiếp trên server cũ cho tới khi tự đóng, chỉ kết nối mới dùng server mới. Không làm gián đoạn cuộc gọi hay file đang tải.</p>
+                <p>Thay đổi mục này cần kết nối lại.</p>
+            </div>
             <div id="srv-msg" class="sub-msg" hidden></div>
         </section>
 
         <section id="sub-panel" class="block" hidden>
             <div class="block-title row-title">
                 <span>Subscription</span>
-                <button id="sub-refresh" class="link" type="button">cập nhật tất cả</button>
+                <span class="row-actions">
+                    <button id="sub-refresh" class="link" type="button">cập nhật tất cả</button>
+                    <button class="help" type="button" data-help="h-subs" aria-expanded="false" title="Giải thích">?</button>
+                </span>
+            </div>
+            <div id="h-subs" class="help-text" hidden>
+                <p>Subscription là một đường link (https://…) mà nhà cung cấp VPN đưa cho bạn. Link này chứa danh sách server và được nhà cung cấp cập nhật khi họ thêm / đổi server.</p>
+                <p><b>Cập nhật tất cả</b> tải lại mọi danh sách. Server bạn đang chọn được giữ nguyên nếu vẫn còn trong danh sách mới. Xoá một subscription sẽ xoá luôn các server của nó.</p>
             </div>
             <div id="sub-list" class="sub-list"></div>
             <details id="sub-add-box" class="inner">
@@ -177,82 +243,184 @@
 
     <!-- ============ Tab: Định tuyến ============ -->
     <div class="pane" data-pane="route" hidden>
+        <p class="tab-intro">Quyết định traffic nào đi qua VPN và traffic nào đi thẳng ra mạng nhà mạng. Đi thẳng thì nhanh hơn và không tốn băng thông server, nhưng nhà mạng thấy được bạn truy cập đâu và có thể chặn.</p>
+
         <section id="routing-block" class="block">
             <div class="block-title">Định tuyến</div>
-            <div id="routing-note" class="hint note" hidden>Chỉ áp dụng cho chế độ WARP và Server riêng.</div>
-            <label class="check">
-                <input id="r-direct-vn" type="checkbox">
-                <span>Web Việt Nam đi thẳng (không qua VPN)<small>Tên miền .vn và IP Việt Nam</small></span>
-            </label>
-            <label class="field">
-                <span>Tên miền đi thẳng <small>(mỗi dòng một tên miền)</small></span>
-                <textarea id="r-direct-domains" rows="3" spellcheck="false" placeholder="example.com"></textarea>
-            </label>
-            <label class="field">
-                <span>Tên miền luôn qua VPN <small>(ưu tiên hơn “Web Việt Nam”)</small></span>
-                <textarea id="r-proxy-domains" rows="3" spellcheck="false" placeholder="openai.com"></textarea>
-            </label>
-            <label class="field">
-                <span>Ứng dụng đi thẳng <small>(tên file .exe)</small></span>
-                <textarea id="r-direct-procs" rows="2" spellcheck="false" placeholder="steam.exe"></textarea>
-            </label>
+            <div id="routing-note" class="hint note" hidden>Chỉ áp dụng cho chế độ WARP và Server riêng. Ở chế độ Vượt chặn mọi traffic đều đi thẳng.</div>
+            <div class="opt">
+                <label class="check">
+                    <input id="r-direct-vn" type="checkbox">
+                    <span>Web Việt Nam đi thẳng (không qua VPN)<small>Tên miền .vn và mọi IP thuộc Việt Nam</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-direct-vn" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-direct-vn" class="help-text" hidden>
+                <p>Truy cập tới website Việt Nam đi thẳng, không vòng qua server nước ngoài: nhanh hơn, web ngân hàng / dịch vụ công không báo “truy cập từ nước ngoài”, và tiết kiệm băng thông server.</p>
+                <p>Nhận biết bằng tên miền đuôi <code>.vn</code> và danh sách dải IP của Việt Nam. Trang Việt Nam dùng tên miền quốc tế (vd. <code>zalo.me</code>) vẫn được nhận ra nếu máy chủ đặt ở Việt Nam.</p>
+            </div>
+
+            <div class="field">
+                <div class="row-title">
+                    <span>Tên miền đi thẳng <small>(mỗi dòng một tên miền)</small></span>
+                    <button class="help" type="button" data-help="h-direct-domains" aria-expanded="false" title="Giải thích">?</button>
+                </div>
+                <div id="h-direct-domains" class="help-text" hidden>
+                    <p>Các tên miền này và mọi tên miền con của chúng đi thẳng, không qua VPN. Ví dụ <code>zalo.me</code> áp dụng cho cả <code>chat.zalo.me</code>. Có thể dán cả URL, app tự lấy phần tên miền.</p>
+                </div>
+                <textarea id="r-direct-domains" rows="3" spellcheck="false" placeholder="example.com" aria-label="Tên miền đi thẳng"></textarea>
+            </div>
+            <div class="field">
+                <div class="row-title">
+                    <span>Tên miền luôn qua VPN <small>(ưu tiên hơn “Web Việt Nam”)</small></span>
+                    <button class="help" type="button" data-help="h-proxy-domains" aria-expanded="false" title="Giải thích">?</button>
+                </div>
+                <div id="h-proxy-domains" class="help-text" hidden>
+                    <p>Các tên miền này luôn đi qua VPN, kể cả khi chúng có đuôi .vn, có IP Việt Nam, hay nằm trong danh sách đi thẳng. Dùng cho trang bị nhà mạng chặn nhưng lại có máy chủ ở Việt Nam.</p>
+                </div>
+                <textarea id="r-proxy-domains" rows="3" spellcheck="false" placeholder="openai.com" aria-label="Tên miền luôn qua VPN"></textarea>
+            </div>
+            <div class="field">
+                <div class="row-title">
+                    <span>Ứng dụng đi thẳng <small>(tên file .exe)</small></span>
+                    <button class="help" type="button" data-help="h-direct-procs" aria-expanded="false" title="Giải thích">?</button>
+                </div>
+                <div id="h-direct-procs" class="help-text" hidden>
+                    <p>Mọi traffic của các chương trình này đi thẳng, bất kể tên miền. Hợp với game online (ping thấp hơn), Steam hay torrent (không tốn băng thông server).</p>
+                    <p>Nhập tên file, mỗi dòng một tên, ví dụ <code>steam.exe</code>. Xem tên file trong Task Manager → tab Details.</p>
+                </div>
+                <textarea id="r-direct-procs" rows="2" spellcheck="false" placeholder="steam.exe" aria-label="Ứng dụng đi thẳng"></textarea>
+            </div>
         </section>
         <section class="block">
             <div class="block-title">DNS &amp; mạng</div>
-            <label class="field">
-                <span>DoH server</span>
-                <input id="doh" type="text" spellcheck="false" placeholder="https://1.1.1.1/dns-query">
-            </label>
-            <label class="check">
-                <input id="lan" type="checkbox">
-                <span>Không đi qua VPN cho mạng LAN</span>
-            </label>
+            <div class="field">
+                <div class="row-title">
+                    <span>DoH server <small>(DNS mã hoá)</small></span>
+                    <button class="help" type="button" data-help="h-doh" aria-expanded="false" title="Giải thích">?</button>
+                </div>
+                <div id="h-doh" class="help-text" hidden>
+                    <p>DNS là bước đổi tên trang (vd. <code>facebook.com</code>) thành địa chỉ IP. Nhà mạng chặn web chủ yếu bằng cách trả sai ở bước này. App gửi mọi truy vấn DNS dưới dạng mã hoá qua HTTPS (DoH) tới server dưới đây, nên nhà mạng không đọc hay sửa được. Mục này luôn bật ở mọi chế độ.</p>
+                    <p>Gợi ý: <code>https://1.1.1.1/dns-query</code> (Cloudflare), <code>https://8.8.8.8/dns-query</code> (Google), <code>https://9.9.9.9/dns-query</code> (Quad9). Nên dùng địa chỉ IP thay vì tên miền để tránh bị chặn ngay từ bước tìm server DNS.</p>
+                </div>
+                <input id="doh" type="text" spellcheck="false" placeholder="https://1.1.1.1/dns-query" aria-label="DoH server">
+            </div>
+            <div class="opt">
+                <label class="check">
+                    <input id="lan" type="checkbox">
+                    <span>Không đi qua VPN cho mạng LAN<small>Máy in, NAS, router… trong mạng nhà vẫn dùng được</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-lan" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-lan" class="help-text" hidden>
+                <p>Kết nối tới thiết bị trong mạng nội bộ (địa chỉ 192.168.x.x, 10.x.x.x, 172.16–31.x.x) như máy in, NAS, router, chia sẻ file, Chromecast đi thẳng, không vào VPN.</p>
+                <p>Tắt mục này thì các thiết bị đó có thể không truy cập được khi bật VPN. Khi kill switch đang chặn, mạng LAN vẫn dùng được nếu mục này bật.</p>
+            </div>
         </section>
     </div>
 
     <!-- ============ Tab: Ứng dụng ============ -->
     <div class="pane" data-pane="app" hidden>
+        <p class="tab-intro">Cách ứng dụng phản ứng khi rớt mạng, khi bạn đóng cửa sổ và khi khởi động máy. Các mục ở đây có hiệu lực ngay, không cần kết nối lại.</p>
+
         <section class="block">
             <div class="block-title">Bảo vệ</div>
-            <label class="check">
-                <input id="kill-switch" type="checkbox">
-                <span>Kill switch — chặn mạng khi VPN rớt, chống lộ IP<small>Áp dụng cho WARP và Server riêng</small></span>
-            </label>
-            <label class="check">
-                <input id="auto-reconnect" type="checkbox">
-                <span>Tự kết nối lại khi bị rớt</span>
-            </label>
+            <div class="opt">
+                <label class="check">
+                    <input id="kill-switch" type="checkbox">
+                    <span>Kill switch — chặn mạng khi VPN rớt<small>Không để lộ IP thật. Áp dụng cho WARP và Server riêng</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-ks" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-ks" class="help-text" hidden>
+                <p>Bình thường khi VPN dừng bất ngờ, Windows tự quay về mạng thường và mọi trang bạn đang mở sẽ thấy IP thật. Với kill switch, app giữ card mạng ảo và <b>chặn mọi kết nối Internet</b> thay vào đó.</p>
+                <p>Mạng bị chặn cho đến khi kết nối lại thành công hoặc bạn bấm <b>Ngắt kết nối</b>. Mạng LAN vẫn dùng được nếu bật mục LAN ở tab Định tuyến. Không áp dụng cho chế độ Vượt chặn vì chế độ đó không giấu IP.</p>
+            </div>
+            <div class="opt">
+                <label class="check">
+                    <input id="auto-reconnect" type="checkbox">
+                    <span>Tự kết nối lại khi bị rớt<small>Thử lại 5 lần trong khoảng 1 phút</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-reconnect" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-reconnect" class="help-text" hidden>
+                <p>Khi lõi VPN dừng bất ngờ (server sập, mạng chập chờn, máy thức dậy sau khi ngủ), app tự khởi động lại tối đa 5 lần, cách nhau 2, 5, 10, 20 và 30 giây.</p>
+                <p>Nếu vẫn không được: có kill switch thì mạng tiếp tục bị chặn chờ bạn xử lý; không có kill switch thì app ngắt kết nối và báo lỗi.</p>
+            </div>
+            <div class="opt">
+                <label class="check">
+                    <input id="notify" type="checkbox">
+                    <span>Thông báo Windows<small>Báo khi VPN rớt, đã kết nối lại hoặc không kết nối được</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-notify" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-notify" class="help-text" hidden>
+                <p>Hiện thông báo ở góc màn hình khi: VPN bị rớt, kill switch bắt đầu chặn mạng, đã tự kết nối lại được, hoặc không tự kết nối được lúc mở app. Hữu ích khi app đang ẩn dưới khay.</p>
+            </div>
         </section>
         <section class="block">
-            <div class="block-title">Khởi động</div>
-            <label class="check">
-                <input id="auto-connect" type="checkbox">
-                <span>Tự kết nối khi mở ứng dụng</span>
-            </label>
-            <label class="check">
-                <input id="start-win" type="checkbox">
-                <span>Khởi động cùng Windows</span>
-            </label>
-            <label class="check indent" id="start-min-row">
-                <input id="start-min" type="checkbox">
-                <span>Ẩn xuống khay khi khởi động cùng Windows</span>
-            </label>
-            <label class="check">
-                <input id="close-tray" type="checkbox">
-                <span>Bấm X thì thu nhỏ xuống khay (không thoát)</span>
-            </label>
+            <div class="block-title">Khởi động &amp; cửa sổ</div>
+            <div class="opt">
+                <label class="check">
+                    <input id="auto-connect" type="checkbox">
+                    <span>Tự kết nối khi mở ứng dụng<small>Dùng chế độ và server đã chọn lần trước</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-autoconnect" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-autoconnect" class="help-text" hidden>
+                <p>Mở app là kết nối ngay, không cần bấm nút. Kết hợp với “Khởi động cùng Windows” để máy luôn có VPN từ lúc đăng nhập. Nếu kết nối thất bại, app báo lỗi (và thông báo Windows nếu bật).</p>
+            </div>
+            <div class="opt">
+                <label class="check">
+                    <input id="start-win" type="checkbox">
+                    <span>Khởi động cùng Windows<small>Tự chạy khi đăng nhập, không hỏi quyền Administrator</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-startwin" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-startwin" class="help-text" hidden>
+                <p>App tạo một tác vụ “RedCyclone VPN” trong Task Scheduler để chạy khi bạn đăng nhập, với quyền Administrator mà không hiện hộp thoại UAC. App mở khoảng 10 giây sau khi đăng nhập để Windows kịp khởi động xong.</p>
+                <p>Tắt mục này sẽ xoá tác vụ. Gỡ cài đặt app cũng tự xoá tác vụ.</p>
+            </div>
+            <div class="opt">
+                <label class="check indent" id="start-min-row">
+                    <input id="start-min" type="checkbox">
+                    <span>Ẩn xuống khay khi khởi động cùng Windows<small>Chỉ hiện icon, không mở cửa sổ</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-startmin" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-startmin" class="help-text" hidden>
+                <p>Khi app tự chạy cùng Windows, nó chỉ hiện icon ở khay hệ thống (góc phải thanh taskbar, có thể nằm trong mũi tên ^) mà không mở cửa sổ. Bấm vào icon để mở. Không ảnh hưởng khi bạn tự mở app.</p>
+            </div>
+            <div class="opt">
+                <label class="check">
+                    <input id="close-tray" type="checkbox">
+                    <span>Bấm X thì thu nhỏ xuống khay<small>VPN vẫn chạy khi đóng cửa sổ</small></span>
+                </label>
+                <button class="help" type="button" data-help="h-closetray" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-closetray" class="help-text" hidden>
+                <p><b>Bật</b>: nút X chỉ ẩn cửa sổ, VPN vẫn chạy; mở lại bằng icon ở khay. Muốn tắt hẳn thì dùng nút <b>Thoát hẳn</b> bên dưới hoặc chuột phải icon → Thoát.</p>
+                <p><b>Tắt</b>: nút X ngắt VPN và thoát app.</p>
+            </div>
         </section>
         <div class="row">
-            <button id="open-data" class="btn ghost" type="button">Mở thư mục dữ liệu</button>
-            <button id="quit" class="btn ghost danger" type="button">Thoát hẳn</button>
+            <button id="open-data" class="btn ghost" type="button" title="Chứa nhật ký (app.log) và cài đặt (đã mã hoá)">Mở thư mục dữ liệu</button>
+            <button id="quit" class="btn ghost danger" type="button" title="Ngắt VPN và đóng app hoàn toàn">Thoát hẳn</button>
         </div>
     </div>
 
     <!-- ============ Tab: Công cụ ============ -->
     <div class="pane" data-pane="tools" hidden>
+        <p class="tab-intro">Kiểm tra VPN có hoạt động đúng không, và xem nhật ký khi gặp lỗi.</p>
+
         <section class="block">
             <div class="block-title row-title">
                 <span>Kiểm tra kết nối</span>
+                <button class="help" type="button" data-help="h-check" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-check" class="help-text" hidden>
+                <p>Hiện IP công khai mà website nhìn thấy, quốc gia, trung tâm dữ liệu Cloudflare trả lời và trạng thái WARP. Bật VPN mà IP / quốc gia đổi nghĩa là VPN đang hoạt động.</p>
+                <p>Sau đó thử mở các trang hay bị chặn hoặc bóp ở Việt Nam. ✗ kèm “bị ngắt kết nối”, “chứng chỉ sai” hoặc “không phân giải được tên miền” thường là bị nhà mạng chặn. Chạy thử cả khi tắt và bật VPN để so sánh.</p>
             </div>
             <button id="check-btn" class="btn" type="button">Kiểm tra kết nối</button>
             <div id="check-out" class="check-out" hidden></div>
@@ -262,6 +430,7 @@
             <summary>Nhật ký <span id="log-count" class="count"></span>
                 <button id="log-clear" class="link" type="button">xoá</button>
             </summary>
+            <p class="hint">Hoạt động của app, sing-box và GoodbyeDPI. Khi báo lỗi, gửi kèm file <code>app.log</code> trong thư mục dữ liệu.</p>
             <pre id="log"></pre>
         </details>
     </div>

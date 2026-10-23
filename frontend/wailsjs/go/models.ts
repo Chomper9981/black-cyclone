@@ -237,6 +237,8 @@ export namespace settings {
 	    start_with_windows: boolean;
 	    start_minimized: boolean;
 	    close_to_tray: boolean;
+	    notifications: boolean;
+	    interrupt_on_switch: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -262,6 +264,8 @@ export namespace settings {
 	        this.start_with_windows = source["start_with_windows"];
 	        this.start_minimized = source["start_minimized"];
 	        this.close_to_tray = source["close_to_tray"];
+	        this.notifications = source["notifications"];
+	        this.interrupt_on_switch = source["interrupt_on_switch"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

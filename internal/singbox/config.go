@@ -249,7 +249,7 @@ func serverOutbounds(s settings.Settings) ([]any, []string, error) {
 		"tag":                         TagProxy,
 		"outbounds":                   choices,
 		"default":                     selected,
-		"interrupt_exist_connections": true,
+		"interrupt_exist_connections": s.InterruptOnSwitch,
 	})
 	return obs, warnings, nil
 }

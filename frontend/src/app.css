@@ -337,3 +337,48 @@ details.inner > input + .row { margin-top: 6px; }
 .site.bad .mark { color: #ff8a80; }
 .site-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .site-err { font-size: 11px; color: #ff8a80; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Inline help: "?" button + expandable explanation */
+.tab-intro { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.opt { display: flex; align-items: flex-start; gap: 6px; }
+.opt > .check { flex: 1; min-width: 0; }
+.field > .row-title > span { color: var(--muted); font-size: 12px; }
+.row-actions { display: inline-flex; align-items: center; gap: 10px; }
+.help, .help-icon {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--muted);
+    font: 600 11px/1 "Segoe UI", system-ui, sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.help { margin-top: 2px; padding: 0; cursor: pointer; }
+.help:hover, .help.open { color: var(--text); border-color: var(--accent); }
+.help.open { background: var(--accent-dim); }
+.help:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.help-icon { width: 15px; height: 15px; font-size: 10px; vertical-align: -2px; }
+.help-text {
+    margin: 2px 0 8px;
+    padding: 8px 10px;
+    border-left: 2px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    background: var(--surface-2);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    user-select: text;
+}
+.help-text p { margin: 0; }
+.help-text p + p { margin-top: 6px; }
+.help-text code, .tab-intro code, .log .hint code { font-size: 11px; }
+.kv .help { margin-top: 0; margin-left: auto; }
+.log .hint { margin: 6px 0; }
+.inner .hint { margin: 6px 0; }

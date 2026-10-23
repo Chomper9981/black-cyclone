@@ -98,20 +98,26 @@ type Settings struct {
 	StartWithWindows bool `json:"start_with_windows"`
 	StartMinimized   bool `json:"start_minimized"` // launch hidden in the tray
 	CloseToTray      bool `json:"close_to_tray"`
+	Notifications    bool `json:"notifications"` // Windows toasts on drop / reconnect
+	// InterruptOnSwitch closes existing connections when the server changes, so
+	// everything moves to the new server at once (otherwise only new connections do).
+	InterruptOnSwitch bool `json:"interrupt_on_switch"`
 }
 
 func Default() Settings {
 	return Settings{
-		Mode:           ModeBypass,
-		DoHServer:      "https://1.1.1.1/dns-query",
-		UseDPI:         true,
-		DPIPreset:      "9",
-		BypassLAN:      true,
-		SelectedServer: AutoServer,
-		Routing:        Routing{DirectVN: true},
-		KillSwitch:     true,
-		AutoReconnect:  true,
-		CloseToTray:    true,
+		Mode:              ModeBypass,
+		DoHServer:         "https://1.1.1.1/dns-query",
+		UseDPI:            true,
+		DPIPreset:         "9",
+		BypassLAN:         true,
+		SelectedServer:    AutoServer,
+		Routing:           Routing{DirectVN: true},
+		KillSwitch:        true,
+		AutoReconnect:     true,
+		CloseToTray:       true,
+		Notifications:     true,
+		InterruptOnSwitch: true,
 	}
 }
 

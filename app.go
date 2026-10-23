@@ -193,6 +193,10 @@ func (a *App) SaveSettings(s settings.Settings) error {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.state != StateOff {
+		// Failure handling reads these from a.conf, so they apply immediately.
+		a.conf.KillSwitch, a.conf.AutoReconnect = s.KillSwitch, s.AutoReconnect
+	}
 	if a.state == StateOn && a.conf.Mode == settings.ModeCustom && a.conf.SelectedServer != s.SelectedServer && a.clash != nil {
 		member := singbox.TagAuto
 		if s.SelectedServer != settings.AutoServer {
@@ -256,7 +260,7 @@ func (a *App) syncAutostart(s settings.Settings) {
 func networkKey(s settings.Settings) string {
 	s.SelectedServer = ""
 	s.AutoConnect, s.StartWithWindows, s.StartMinimized, s.CloseToTray = false, false, false, false
-	s.KillSwitch, s.AutoReconnect = false, false
+	s.KillSwitch, s.AutoReconnect, s.Notifications = false, false, false
 	s.Subscriptions = nil
 	if s.Mode != settings.ModeCustom {
 		s.Servers = nil
@@ -658,6 +662,9 @@ func (a *App) OpenDataFolder() error {
 
 func (a *App) notify(title, body string) {
 	if a.ctx == nil {
+		return
+	}
+	if s, err := settings.Load(); err == nil && !s.Notifications {
 		return
 	}
 	_ = runtime.SendNotification(a.ctx, runtime.NotificationOptions{

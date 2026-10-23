@@ -106,6 +106,8 @@ const el = {
     startMin: $('start-min'),
     startMinRow: $('start-min-row'),
     closeTray: $('close-tray'),
+    notify: $('notify'),
+    interruptSwitch: $('interrupt-switch'),
     openData: $('open-data'),
     quit: $('quit'),
     // tools
@@ -249,6 +251,8 @@ function fillForm(s) {
     el.startWin.checked = !!s.start_with_windows;
     el.startMin.checked = !!s.start_minimized;
     el.closeTray.checked = !!s.close_to_tray;
+    el.notify.checked = !!s.notifications;
+    el.interruptSwitch.checked = !!s.interrupt_on_switch;
 }
 
 // readForm overlays the form-owned fields onto settings. Servers, subscriptions,
@@ -275,6 +279,8 @@ function readForm() {
         start_with_windows: el.startWin.checked,
         start_minimized: el.startMin.checked,
         close_to_tray: el.closeTray.checked,
+        notifications: el.notify.checked,
+        interrupt_on_switch: el.interruptSwitch.checked,
     };
 }
 
@@ -1013,9 +1019,23 @@ el.quit.addEventListener('click', () => { flushSave().catch(() => {}).finally(()
 
 el.modeInputs.forEach((i) => i.addEventListener('change', onFormChange));
 [el.dpi, el.dpiPreset, el.lan, el.rDirectVN, el.killSwitch, el.autoReconnect, el.autoConnect,
-    el.startWin, el.startMin, el.closeTray].forEach((i) => i.addEventListener('change', onFormChange));
+    el.startWin, el.startMin, el.closeTray, el.notify, el.interruptSwitch].forEach((i) => i.addEventListener('change', onFormChange));
 [el.dpiArgs, el.doh, el.rDirectDomains, el.rProxyDomains, el.rDirectProcs]
     .forEach((i) => i.addEventListener('input', onFormChange));
+
+// "?" buttons expand the explanation whose id is in data-help. Capture phase +
+// preventDefault so a button next to / inside a <label> never toggles the checkbox.
+document.addEventListener('click', (ev) => {
+    const b = ev.target.closest('button.help');
+    if (!b) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const box = document.getElementById(b.dataset.help);
+    if (!box) return;
+    box.hidden = !box.hidden;
+    b.setAttribute('aria-expanded', String(!box.hidden));
+    b.classList.toggle('open', !box.hidden);
+}, true);
 
 EventsOn('log', appendLog);
 EventsOn('status', applyStatus);
