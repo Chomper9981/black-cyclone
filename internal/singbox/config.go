@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"redcyclone-vpn/internal/settings"
-	"redcyclone-vpn/internal/vless"
+	"redcyclone-vpn/internal/share"
 )
 
 // Build returns the sing-box JSON config for the selected mode.
@@ -42,7 +42,7 @@ func Build(s settings.Settings) ([]byte, error) {
 		endpoints = append(endpoints, warpEndpoint(s.Warp))
 		finalOut = "proxy"
 	case settings.ModeCustom:
-		ob, err := vless.ParseOutbound(s.CustomLink)
+		ob, err := share.ParseOutbound(s.CustomLink, "proxy")
 		if err != nil {
 			return nil, fmt.Errorf("link server: %w", err)
 		}
