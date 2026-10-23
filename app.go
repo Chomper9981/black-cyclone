@@ -96,10 +96,12 @@ func (a *App) startup(ctx context.Context) {
 		}
 	}
 	a.log(fmt.Sprintf("RedCyclone khởi động, admin=%v, bin=%s", isAdmin(), runner.BinDir()))
-	runner.KillStale(runner.BinDir())
+	if n, err := runner.KillStale(runner.BinDir()); n > 0 || err != nil {
+		a.log(fmt.Sprintf("Dọn %d tiến trình cũ còn sót (err=%v)", n, err))
+	}
 	_ = runtime.InitializeNotifications(ctx)
 
-	tray.Start(tray.Callbacks{
+	tray.Start(nil, tray.Callbacks{
 		Show:   a.ShowWindow,
 		Toggle: a.toggle,
 		Quit:   a.Quit,
