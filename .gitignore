@@ -3,3 +3,4 @@ frontend/dist
 frontend/node_modules
 # runtime binaries (scripts/fetch-bins.ps1)
 bin/
+.claude/
