@@ -181,7 +181,7 @@ func tunInbound() map[string]any {
 	return map[string]any{
 		"type":           "tun",
 		"tag":            "tun-in",
-		"interface_name": "RedCyclone",
+		"interface_name": "BlackCyclone",
 		"address":        []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
 		"mtu":            9000,
 		"auto_route":     true,

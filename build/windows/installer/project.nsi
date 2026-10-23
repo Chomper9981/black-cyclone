@@ -123,6 +123,7 @@ Section "uninstall"
     nsExec::Exec 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
     nsExec::Exec 'taskkill /F /IM sing-box.exe'
     nsExec::Exec 'taskkill /F /IM goodbyedpi.exe'
+    nsExec::Exec 'schtasks /Delete /TN "Black Cyclone" /F'
     nsExec::Exec 'schtasks /Delete /TN "RedCyclone VPN" /F'
 
     RMDir /r $INSTDIR

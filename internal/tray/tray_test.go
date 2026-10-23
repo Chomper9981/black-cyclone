@@ -65,7 +65,7 @@ func TestSmoke(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	SetState(true, "RedCyclone VPN — đã kết nối")
+	SetState(true, "Black Cyclone — đã kết nối")
 	time.Sleep(time.Second)
 	mu.Lock()
 	title := toggle.String()

@@ -1,4 +1,4 @@
-# RedCyclone VPN
+# Black Cyclone
 
 Ứng dụng Windows giúp vượt chặn của nhà mạng. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, `GoodbyeDPI` chống DPI.
 
@@ -32,11 +32,11 @@ powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1   # tải sing-b
 
 ```powershell
 wails dev                 # chạy thử (mở terminal bằng quyền Administrator)
-wails build               # ra build\bin\redcyclone-vpn.exe (manifest yêu cầu Administrator)
+wails build               # ra build\bin\BlackCyclone.exe (manifest yêu cầu Administrator)
 wails build -nsis         # thêm bộ cài, đã gói kèm bin\
 ```
 
-Khi phát hành không dùng bộ cài, đặt thư mục `bin\` cạnh `redcyclone-vpn.exe`. Ở chế độ dev, app tự tìm `bin\` ở gốc project.
+Khi phát hành không dùng bộ cài, đặt thư mục `bin\` cạnh `BlackCyclone.exe`. Ở chế độ dev, app tự tìm `bin\` ở gốc project.
 
 Nâng cấp sing-box: sửa URL + SHA-256 trong `scripts\fetch-bins.ps1`, chạy lại rồi `go test ./internal/...` (test chạy `sing-box check` thật với mọi kiểu config).
 
@@ -45,7 +45,7 @@ Nâng cấp sing-box: sửa URL + SHA-256 trong `scripts\fetch-bins.ps1`, chạy
 ```
 app.go                     vòng đời kết nối: Connect/Disconnect, tự nối lại, kill switch, thống kê, khay
 tools.go                   API phụ cho UI: server/subscription, WARP+/quét endpoint, ping, kiểm tra kết nối
-internal/settings          cài đặt ở %APPDATA%\RedCyclone\settings.json (mã hoá DPAPI)
+internal/settings          cài đặt ở %APPDATA%\BlackCyclone\settings.json (mã hoá DPAPI)
 internal/singbox           sinh config sing-box (test chạy `sing-box check` thật)
 internal/share             parse link vless/vmess/trojan/ss/hysteria2/tuic → outbound sing-box
 internal/subscription      tải + gộp subscription

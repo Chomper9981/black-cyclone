@@ -1,4 +1,4 @@
-// Package settings persists user configuration under %APPDATA%\RedCyclone.
+// Package settings persists user configuration under %APPDATA%\BlackCyclone.
 // The file is encrypted with Windows DPAPI (current user) because it holds
 // WireGuard private keys and proxy credentials.
 package settings
@@ -146,8 +146,29 @@ func Dir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(base, "RedCyclone")
-	return dir, os.MkdirAll(dir, 0o700)
+	dir := filepath.Join(base, "BlackCyclone")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return dir, err
+	}
+	migrateLegacy(filepath.Join(base, "RedCyclone"), dir)
+	return dir, nil
+}
+
+// migrateLegacy copies settings from builds released as "RedCyclone VPN" the
+// first time the new folder has none. Copy, not rename: the old app may still be
+// running with app.log open. DPAPI keys are per Windows user, so the encrypted
+// file stays readable.
+func migrateLegacy(oldDir, dir string) {
+	if _, err := os.Stat(filepath.Join(dir, "settings.json")); !errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	for _, name := range []string{"settings.json", "cache.db"} {
+		data, err := os.ReadFile(filepath.Join(oldDir, name))
+		if err != nil {
+			continue
+		}
+		_ = os.WriteFile(filepath.Join(dir, name), data, 0o600)
+	}
 }
 
 func path() (string, error) {

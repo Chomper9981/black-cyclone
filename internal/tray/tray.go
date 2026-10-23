@@ -17,8 +17,6 @@ import (
 	"github.com/energye/systray"
 )
 
-//go:generate go run ./genicons.go
-
 //go:embed connected.ico
 var iconConnected []byte
 
@@ -27,17 +25,17 @@ var iconDisconnected []byte
 
 // Callbacks are the actions triggered from the tray. Nil entries are ignored.
 type Callbacks struct {
-	Show   func() // left-click / double-click on the icon, or "Mở RedCyclone"
+	Show   func() // left-click / double-click on the icon, or "Mở Black Cyclone"
 	Toggle func() // "Kết nối" / "Ngắt kết nối"
 	Quit   func() // "Thoát"
 }
 
 const (
-	labelShow       = "Mở RedCyclone"
+	labelShow       = "Mở Black Cyclone"
 	labelConnect    = "Kết nối"
 	labelDisconnect = "Ngắt kết nối"
 	labelQuit       = "Thoát"
-	defaultTooltip  = "RedCyclone VPN"
+	defaultTooltip  = "Black Cyclone"
 )
 
 var (
@@ -103,7 +101,7 @@ func Start(icon []byte, cb Callbacks) {
 }
 
 // SetState updates the icon variant, the toggle item label and the tooltip.
-// An empty tooltip means "RedCyclone VPN". Safe to call any time, from any
+// An empty tooltip means "Black Cyclone". Safe to call any time, from any
 // goroutine, including before the tray is ready (applied once it is).
 func SetState(isConnected bool, tip string) {
 	mu.Lock()

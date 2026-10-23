@@ -7,7 +7,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const testTask = "RedCyclone VPN autostart test"
+const testTask = "Black Cyclone autostart test"
 
 // TestEnableDisable registers a real task under a test name (so a user's real
 // entry is untouched). Elevated: HighestAvailable, exactly like Enable.
@@ -22,7 +22,7 @@ func TestEnableDisable(t *testing.T) {
 	if exists(testTask) {
 		t.Fatal("test task exists before Enable")
 	}
-	exe := `C:\Program Files\RedCyclone VPN\redcyclone-vpn.exe`
+	exe := `C:\Program Files\Black Cyclone\BlackCyclone.exe`
 	if err := enable(testTask, level, exe, "--minimized", "a b&c"); err != nil {
 		if strings.Contains(err.Error(), "Access is denied") || strings.Contains(err.Error(), "0x80070005") {
 			t.Skipf("no permission to register tasks: %v", err)

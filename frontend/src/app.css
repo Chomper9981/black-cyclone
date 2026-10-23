@@ -11,12 +11,7 @@
 .hdr { display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 8px; font-size: 16px; letter-spacing: .2px; }
 .brand b { color: var(--accent); font-weight: 600; }
-.brand-mark {
-    width: 18px; height: 18px; border-radius: 50%;
-    background: conic-gradient(var(--accent) 0 72%, transparent 72%);
-    -webkit-mask: radial-gradient(circle, transparent 4px, #000 5px);
-            mask: radial-gradient(circle, transparent 4px, #000 5px);
-}
+.brand-mark { height: 22px; width: auto; display: block; }
 .pill {
     font-size: 12px; padding: 3px 10px; border-radius: 999px;
     border: 1px solid var(--line); color: var(--muted);

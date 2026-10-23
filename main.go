@@ -26,7 +26,7 @@ func main() {
 	app := NewApp(auto)
 
 	err := wails.Run(&options.App{
-		Title:       "RedCyclone VPN",
+		Title:       "Black Cyclone",
 		Width:       440,
 		Height:      720,
 		MinWidth:    380,

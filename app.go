@@ -96,13 +96,13 @@ func NewApp(autostart bool) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	// Mirror the UI log to %APPDATA%\RedCyclone\app.log (fresh file each launch).
+	// Mirror the UI log to %APPDATA%\BlackCyclone\app.log (fresh file each launch).
 	if dir, err := settings.Dir(); err == nil {
 		if f, err := os.Create(filepath.Join(dir, "app.log")); err == nil {
 			a.logFile = f
 		}
 	}
-	a.log(fmt.Sprintf("RedCyclone khởi động, admin=%v, bin=%s", isAdmin(), runner.BinDir()))
+	a.log(fmt.Sprintf("Black Cyclone khởi động, admin=%v, bin=%s", isAdmin(), runner.BinDir()))
 	if n, err := runner.KillStale(runner.BinDir()); n > 0 || err != nil {
 		a.log(fmt.Sprintf("Dọn %d tiến trình cũ còn sót (err=%v)", n, err))
 	}
@@ -113,7 +113,7 @@ func (a *App) startup(ctx context.Context) {
 		Toggle: a.toggle,
 		Quit:   a.Quit,
 	})
-	tray.SetState(false, "RedCyclone VPN: chưa kết nối")
+	tray.SetState(false, "Black Cyclone: chưa kết nối")
 
 	go a.statsLoop()
 
@@ -366,13 +366,13 @@ func (a *App) emitStatusLocked() {
 	runtime.EventsEmit(a.ctx, "status", st)
 	switch a.state {
 	case StateOn:
-		tray.SetState(true, "RedCyclone VPN: đã kết nối ("+modeName(a.conf.Mode)+")")
+		tray.SetState(true, "Black Cyclone: đã kết nối ("+modeName(a.conf.Mode)+")")
 	case StateReconnecting:
-		tray.SetState(false, "RedCyclone VPN: đang kết nối lại…")
+		tray.SetState(false, "Black Cyclone: đang kết nối lại…")
 	case StateBlocked:
-		tray.SetState(false, "RedCyclone VPN: kill switch đang chặn mạng")
+		tray.SetState(false, "Black Cyclone: kill switch đang chặn mạng")
 	default:
-		tray.SetState(false, "RedCyclone VPN: chưa kết nối")
+		tray.SetState(false, "Black Cyclone: chưa kết nối")
 	}
 }
 
@@ -582,7 +582,7 @@ func (a *App) handleFailureLocked() {
 	}
 	if protect && a.blocking {
 		a.state = StateBlocked
-		a.notify("Mất kết nối VPN", "Kill switch đang chặn mạng. Mở RedCyclone để kết nối lại hoặc ngắt.")
+		a.notify("Mất kết nối VPN", "Kill switch đang chặn mạng. Mở Black Cyclone để kết nối lại hoặc ngắt.")
 		return
 	}
 	a.state = StateOff
@@ -608,7 +608,7 @@ func (a *App) reconnectLoop(session int) {
 			a.log("Đã kết nối lại.")
 			a.emitStatusLocked()
 			a.mu.Unlock()
-			a.notify("Đã kết nối lại", "RedCyclone VPN hoạt động trở lại.")
+			a.notify("Đã kết nối lại", "Black Cyclone hoạt động trở lại.")
 			return
 		}
 		a.lastErr = err.Error()
@@ -628,7 +628,7 @@ func (a *App) reconnectLoop(session int) {
 	}
 	if a.blocking {
 		a.state = StateBlocked
-		a.notify("Không kết nối lại được", "Kill switch vẫn đang chặn mạng. Mở RedCyclone để thử lại hoặc ngắt.")
+		a.notify("Không kết nối lại được", "Kill switch vẫn đang chặn mạng. Mở Black Cyclone để thử lại hoặc ngắt.")
 	} else {
 		a.stopLocked()
 		a.state = StateOff
@@ -706,7 +706,7 @@ func (a *App) currentServer(ctx context.Context, c *clash.Client) string {
 
 /* ---------------- Misc ---------------- */
 
-// OpenDataFolder opens %APPDATA%\RedCyclone (logs, settings) in Explorer.
+// OpenDataFolder opens %APPDATA%\BlackCyclone (logs, settings) in Explorer.
 func (a *App) OpenDataFolder() error {
 	dir, err := settings.Dir()
 	if err != nil {

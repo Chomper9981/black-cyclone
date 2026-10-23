@@ -22,18 +22,25 @@ import (
 )
 
 // TaskName is the Task Scheduler entry name.
-const TaskName = "RedCyclone VPN"
+const TaskName = "Black Cyclone"
+
+// legacyTaskName is the task created by builds released as "RedCyclone VPN".
+const legacyTaskName = "RedCyclone VPN"
 
 // Delay before the task launches after logon, so the shell/tray is ready.
 const logonDelay = "PT10S"
 
 // Enable registers (or replaces) the logon task running exePath with args.
 func Enable(exePath string, args ...string) error {
+	_ = disable(legacyTaskName) // would launch the old exe as well
 	return enable(TaskName, "HighestAvailable", exePath, args...)
 }
 
 // Disable removes the logon task. Removing a task that does not exist is not an error.
-func Disable() error { return disable(TaskName) }
+func Disable() error {
+	_ = disable(legacyTaskName)
+	return disable(TaskName)
+}
 
 // Enabled reports whether the logon task exists.
 func Enabled() bool { return exists(TaskName) }
@@ -51,7 +58,7 @@ func enable(name, runLevel, exePath string, args ...string) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp("", "redcyclone-task-*.xml")
+	f, err := os.CreateTemp("", "blackcyclone-task-*.xml")
 	if err != nil {
 		return err
 	}
@@ -132,7 +139,7 @@ func taskXML(user, runLevel, exe string, args []string) ([]byte, error) {
 	s := `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>Start RedCyclone VPN at logon</Description>
+    <Description>Start Black Cyclone at logon</Description>
   </RegistrationInfo>
   <Triggers>
     <LogonTrigger>
