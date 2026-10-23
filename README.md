@@ -6,36 +6,55 @@
 
 | Chế độ | Làm gì | Đổi IP? |
 |---|---|---|
-| **Vượt chặn** (`bypass`) | Toàn bộ DNS qua DoH (TUN + hijack DNS) + GoodbyeDPI `-9` chống chặn SNI/DPI | Không |
-| **Cloudflare WARP** (`warp`) | Đăng ký WARP miễn phí ngay trong app, toàn bộ traffic qua WireGuard | Có |
-| **Server riêng** (`custom`) | Dán link `vless://` (Reality / TLS, tcp/ws/grpc) từ VPS chạy Xray hoặc sing-box | Có |
+| **Vượt chặn** (`bypass`) | Toàn bộ DNS qua DoH (TUN + hijack DNS) + GoodbyeDPI chống chặn SNI/DPI. Preset: `-9` (mặc định), `-9 -q` (chặn thêm QUIC, giúp YouTube), `-5` (nhẹ), hoặc tham số tuỳ chỉnh | Không |
+| **Cloudflare WARP** (`warp`) | Đăng ký WARP miễn phí ngay trong app, toàn bộ traffic qua WireGuard. Hỗ trợ key WARP+, quét endpoint (handshake WireGuard thật) để tìm IP:port còn sống và nhanh nhất | Có |
+| **Server riêng** (`custom`) | Nhiều server từ link `vless://` `vmess://` `trojan://` `ss://` `hysteria2://` `tuic://` hoặc subscription URL. Chọn tay hoặc **Tự động** (urltest chọn server nhanh nhất), đổi server khi đang kết nối không cần ngắt | Có |
+
+## Tính năng
+
+- **Chia tuyến** (WARP / server riêng): web Việt Nam (`.vn` + dải IP VN) đi thẳng, danh sách domain đi thẳng / bắt buộc qua VPN, chương trình đi thẳng (vd. `steam.exe`), LAN đi thẳng.
+- **Kill switch**: khi lõi chết, app giữ TUN và chặn mọi kết nối để không lộ IP thật, đến khi kết nối lại được hoặc bạn ngắt.
+- **Tự kết nối lại** (2s → 30s, 5 lần) và thông báo Windows khi rớt / nối lại.
+- Tốc độ và lưu lượng realtime (qua Clash API của sing-box), đo ping server, **kiểm tra kết nối** (IP công khai + truy cập thử các trang hay bị chặn).
+- Icon khay hệ thống, đóng cửa sổ thì thu xuống khay, khởi động cùng Windows (Task Scheduler, quyền cao nhất), tự kết nối khi mở, chỉ chạy một bản.
+- Tiến trình con gắn vào Job Object: app crash thì sing-box / GoodbyeDPI cũng tắt theo; dừng êm bằng Ctrl-Break để sing-box gỡ route sạch.
+- `settings.json` được mã hoá bằng DPAPI (khoá WireGuard, link server); `config.json` bị xoá ngay sau khi sing-box khởi động.
 
 ## Cài đặt môi trường
 
 ```powershell
 winget install GoLang.Go
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
-powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1   # tải sing-box + GoodbyeDPI vào bin\
+powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1   # tải sing-box + GoodbyeDPI (phiên bản cố định, kiểm SHA-256) vào bin\
 ```
 
 ## Chạy / build
 
 ```powershell
-wails dev      # chạy thử (mở terminal bằng quyền Administrator)
-wails build    # ra build\bin\redcyclone-vpn.exe (manifest yêu cầu Administrator)
+wails dev                 # chạy thử (mở terminal bằng quyền Administrator)
+wails build               # ra build\bin\redcyclone-vpn.exe (manifest yêu cầu Administrator)
+wails build -nsis         # thêm bộ cài, đã gói kèm bin\
 ```
 
-Khi phát hành, đặt thư mục `bin\` cạnh `redcyclone-vpn.exe`. Ở chế độ dev, app tự tìm `bin\` ở gốc project.
+Khi phát hành không dùng bộ cài, đặt thư mục `bin\` cạnh `redcyclone-vpn.exe`. Ở chế độ dev, app tự tìm `bin\` ở gốc project.
+
+Nâng cấp sing-box: sửa URL + SHA-256 trong `scripts\fetch-bins.ps1`, chạy lại rồi `go test ./internal/...` (test chạy `sing-box check` thật với mọi kiểu config).
 
 ## Cấu trúc
 
 ```
-app.go                     API cho frontend: Connect/Disconnect/GetStatus/Settings/RegisterWarp
-internal/settings          lưu cài đặt ở %APPDATA%\RedCyclone\settings.json
+app.go                     vòng đời kết nối: Connect/Disconnect, tự nối lại, kill switch, thống kê, khay
+tools.go                   API phụ cho UI: server/subscription, WARP+/quét endpoint, ping, kiểm tra kết nối
+internal/settings          cài đặt ở %APPDATA%\RedCyclone\settings.json (mã hoá DPAPI)
 internal/singbox           sinh config sing-box (test chạy `sing-box check` thật)
-internal/runner            chạy/dừng sing-box.exe, goodbyedpi.exe, đẩy log lên UI
-internal/warp              đăng ký Cloudflare WARP (API giống wgcf)
-internal/vless             parse link vless://
+internal/share             parse link vless/vmess/trojan/ss/hysteria2/tuic → outbound sing-box
+internal/subscription      tải + gộp subscription
+internal/warp              đăng ký WARP, key WARP+, quét endpoint bằng handshake WireGuard
+internal/clash             client Clash API của sing-box (lưu lượng, đổi server, đo delay)
+internal/nettest           IP công khai, kiểm tra trang web, TCP ping
+internal/runner            chạy/dừng sing-box.exe, goodbyedpi.exe (Job Object, dừng êm), đẩy log lên UI
+internal/tray              icon khay hệ thống
+internal/autostart         khởi động cùng Windows qua Task Scheduler
 frontend/                  UI (vanilla JS + Vite)
 scripts/fetch-bins.ps1     tải binary phụ trợ
 ```
@@ -43,6 +62,6 @@ scripts/fetch-bins.ps1     tải binary phụ trợ
 ## Test
 
 ```powershell
-go test ./internal/...                       # kiểm tra config với sing-box check
-$env:RCV_LIVE=1; go test ./internal/warp     # gọi API WARP thật
+go test ./internal/...                       # gồm kiểm tra config với sing-box check thật
+$env:RCV_LIVE=1; go test ./internal/warp     # gọi API WARP thật + quét endpoint
 ```
