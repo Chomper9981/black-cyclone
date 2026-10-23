@@ -3,6 +3,7 @@ module redcyclone-vpn
 go 1.26.0
 
 require (
+	github.com/energye/systray v1.0.3
 	github.com/wailsapp/wails/v2 v2.17.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.49.0
