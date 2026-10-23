@@ -6,21 +6,47 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"redcyclone-vpn/internal/settings"
-	"redcyclone-vpn/internal/vless"
 )
 
-// Build returns the sing-box JSON config for the selected mode.
-func Build(s settings.Settings) ([]byte, error) {
+// Options carries runtime details that are not user settings.
+type Options struct {
+	BinDir      string // where bundled rule sets (geoip-vn.srs) live
+	CacheFile   string // sing-box cache.db (rule-set cache, selected server)
+	ClashAPI    string // "127.0.0.1:port" for stats / server switching; empty disables
+	ClashSecret string
+}
+
+// Outbound tags used by the app (the Clash API addresses them by tag).
+const (
+	TagProxy = "proxy" // selector (custom) or WireGuard endpoint (warp)
+	TagAuto  = "auto"  // urltest over all servers
+)
+
+// ServerTag is the outbound tag of a configured server.
+func ServerTag(id string) string { return "srv-" + id }
+
+// ParseLink turns a share link into a sing-box outbound with the given tag.
+// It is a variable so the share-link parser can be swapped in tests.
+var ParseLink = parseLink
+
+const geoipVNURL = "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-vn.srs"
+
+// Build returns the sing-box JSON config for the selected mode, plus non-fatal
+// warnings (e.g. servers whose links could not be parsed).
+func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 	doh, err := dohServer(s.DoHServer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// "dns-direct": DoH straight from this machine. Used in bypass mode, and to resolve
-	// the proxy server's own hostname in the other modes.
+	// "dns-direct": DoH straight from this machine. Used in bypass mode, for
+	// direct-routed domains, and to resolve the proxy server's own hostname.
 	direct := clone(doh)
 	direct["tag"] = "dns-direct"
 	servers := []any{
@@ -32,74 +58,213 @@ func Build(s settings.Settings) ([]byte, error) {
 
 	outbounds := []any{map[string]any{"type": "direct", "tag": "direct"}}
 	var endpoints []any
+	var warnings []string
 
 	switch s.Mode {
 	case settings.ModeBypass:
 	case settings.ModeWarp:
-		if s.Warp == nil {
-			return nil, fmt.Errorf("chưa đăng ký WARP")
+		if s.Warp == nil || s.Warp.PrivateKey == "" {
+			return nil, nil, fmt.Errorf("chưa đăng ký WARP")
 		}
 		endpoints = append(endpoints, warpEndpoint(s.Warp))
-		finalOut = "proxy"
+		finalOut = TagProxy
 	case settings.ModeCustom:
-		ob, err := vless.ParseOutbound(s.CustomLink)
+		obs, w, err := serverOutbounds(s)
 		if err != nil {
-			return nil, fmt.Errorf("link server: %w", err)
+			return nil, nil, err
 		}
-		outbounds = append(outbounds, ob)
-		finalOut = "proxy"
+		outbounds = append(outbounds, obs...)
+		warnings = w
+		finalOut = TagProxy
 	default:
-		return nil, fmt.Errorf("mode không hợp lệ: %q", s.Mode)
-	}
-
-	if finalOut == "proxy" {
-		// Resolve through the tunnel so the ISP never sees the queries.
-		remote := clone(doh)
-		remote["tag"] = "dns-remote"
-		remote["detour"] = "proxy"
-		servers = append(servers, remote)
-		finalDNS = "dns-remote"
+		return nil, nil, fmt.Errorf("mode không hợp lệ: %q", s.Mode)
 	}
 
 	rules := []any{
 		map[string]any{"action": "sniff"},
 		map[string]any{"protocol": "dns", "action": "hijack-dns"},
-		// Our own helpers must never loop back into the tunnel.
-		map[string]any{"process_name": []string{"sing-box.exe", "goodbyedpi.exe"}, "outbound": "direct"},
 	}
 	if s.BypassLAN {
 		rules = append(rules, map[string]any{"ip_is_private": true, "outbound": "direct"})
 	}
+	var dnsRules []any
+	var ruleSets []any
+
+	if finalOut == TagProxy {
+		// Resolve through the tunnel so the ISP never sees the queries.
+		remote := clone(doh)
+		remote["tag"] = "dns-remote"
+		remote["detour"] = TagProxy
+		servers = append(servers, remote)
+		finalDNS = "dns-remote"
+
+		r := s.Routing
+		if procs := cleanList(r.DirectProcesses); len(procs) > 0 {
+			rules = append(rules, map[string]any{"process_name": procs, "outbound": "direct"})
+		}
+		if doms := cleanDomains(r.ProxyDomains); len(doms) > 0 {
+			rules = append(rules, map[string]any{"domain_suffix": doms, "outbound": TagProxy})
+			dnsRules = append(dnsRules, map[string]any{"domain_suffix": doms, "server": "dns-remote"})
+		}
+		directDoms := cleanDomains(r.DirectDomains)
+		if r.DirectVN {
+			directDoms = append(directDoms, "vn")
+		}
+		if len(directDoms) > 0 {
+			rules = append(rules, map[string]any{"domain_suffix": directDoms, "outbound": "direct"})
+			// Resolve locally so CDNs hand out a nearby address.
+			dnsRules = append(dnsRules, map[string]any{"domain_suffix": directDoms, "server": "dns-direct"})
+		}
+		if r.DirectVN {
+			ruleSets = append(ruleSets, geoipVN(o.BinDir))
+			rules = append(rules, map[string]any{"rule_set": "geoip-vn", "outbound": "direct"})
+		}
+	}
+
+	dns := map[string]any{
+		"servers":  servers,
+		"final":    finalDNS,
+		"strategy": "prefer_ipv4",
+	}
+	if len(dnsRules) > 0 {
+		dns["rules"] = dnsRules
+	}
+	route := map[string]any{
+		"rules":                   rules,
+		"final":                   finalOut,
+		"auto_detect_interface":   true,
+		"default_domain_resolver": "dns-direct",
+	}
+	if len(ruleSets) > 0 {
+		route["rule_set"] = ruleSets
+	}
 
 	cfg := map[string]any{
-		"log": map[string]any{"level": "info", "timestamp": true},
-		"dns": map[string]any{
-			"servers":  servers,
-			"final":    finalDNS,
-			"strategy": "prefer_ipv4",
-		},
-		"inbounds": []any{map[string]any{
-			"type":           "tun",
-			"tag":            "tun-in",
-			"interface_name": "RedCyclone",
-			"address":        []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
-			"mtu":            9000,
-			"auto_route":     true,
-			"strict_route":   true,
-			"stack":          "mixed",
-		}},
+		"log":       map[string]any{"level": "info", "timestamp": true},
+		"dns":       dns,
+		"inbounds":  []any{tunInbound()},
 		"outbounds": outbounds,
-		"route": map[string]any{
-			"rules":                   rules,
-			"final":                   finalOut,
-			"auto_detect_interface":   true,
-			"default_domain_resolver": "dns-direct",
-		},
+		"route":     route,
 	}
 	if len(endpoints) > 0 {
 		cfg["endpoints"] = endpoints
 	}
+	if exp := experimental(o); len(exp) > 0 {
+		cfg["experimental"] = exp
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	return data, warnings, err
+}
+
+// BuildKillSwitch returns a config that keeps the TUN up but rejects all
+// traffic (except LAN, if allowed), so nothing leaks while the tunnel is down.
+func BuildKillSwitch(s settings.Settings) ([]byte, error) {
+	var rules []any
+	if s.BypassLAN {
+		rules = append(rules, map[string]any{"ip_is_private": true, "outbound": "direct"})
+	}
+	rules = append(rules, map[string]any{"action": "reject"})
+	cfg := map[string]any{
+		"log":       map[string]any{"level": "warn", "timestamp": true},
+		"inbounds":  []any{tunInbound()},
+		"outbounds": []any{map[string]any{"type": "direct", "tag": "direct"}},
+		"route": map[string]any{
+			"rules":                 rules,
+			"final":                 "direct",
+			"auto_detect_interface": true,
+		},
+	}
 	return json.MarshalIndent(cfg, "", "  ")
+}
+
+func tunInbound() map[string]any {
+	return map[string]any{
+		"type":           "tun",
+		"tag":            "tun-in",
+		"interface_name": "RedCyclone",
+		"address":        []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
+		"mtu":            9000,
+		"auto_route":     true,
+		"strict_route":   true,
+		"stack":          "mixed",
+	}
+}
+
+func experimental(o Options) map[string]any {
+	exp := map[string]any{}
+	if o.CacheFile != "" {
+		exp["cache_file"] = map[string]any{"enabled": true, "path": o.CacheFile}
+	}
+	if o.ClashAPI != "" {
+		exp["clash_api"] = map[string]any{"external_controller": o.ClashAPI, "secret": o.ClashSecret}
+	}
+	return exp
+}
+
+// serverOutbounds builds one outbound per server, an "auto" urltest and the
+// "proxy" selector that defaults to the user's choice.
+func serverOutbounds(s settings.Settings) ([]any, []string, error) {
+	var obs []any
+	var tags, warnings []string
+	selected := ""
+	for _, srv := range s.Servers {
+		tag := ServerTag(srv.ID)
+		ob, err := ParseLink(srv.Link, tag)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("bỏ qua server %q: %v", srv.Name, err))
+			continue
+		}
+		obs = append(obs, ob)
+		tags = append(tags, tag)
+		if srv.ID == s.SelectedServer {
+			selected = tag
+		}
+	}
+	if len(tags) == 0 {
+		if len(warnings) > 0 {
+			return nil, nil, fmt.Errorf("không có server dùng được: %s", warnings[0])
+		}
+		return nil, nil, fmt.Errorf("chưa có server nào: hãy thêm link hoặc subscription")
+	}
+	choices := tags
+	if len(tags) > 1 {
+		obs = append(obs, map[string]any{
+			"type":      "urltest",
+			"tag":       TagAuto,
+			"outbounds": tags,
+			"url":       "https://www.gstatic.com/generate_204",
+			"interval":  "3m",
+			"tolerance": 50,
+		})
+		choices = append([]string{TagAuto}, tags...)
+		if selected == "" {
+			selected = TagAuto
+		}
+	}
+	if selected == "" {
+		selected = tags[0]
+	}
+	obs = append(obs, map[string]any{
+		"type":                        "selector",
+		"tag":                         TagProxy,
+		"outbounds":                   choices,
+		"default":                     selected,
+		"interrupt_exist_connections": true,
+	})
+	return obs, warnings, nil
+}
+
+func geoipVN(binDir string) map[string]any {
+	if binDir != "" {
+		p := filepath.Join(binDir, "geoip-vn.srs")
+		if _, err := os.Stat(p); err == nil {
+			return map[string]any{"type": "local", "tag": "geoip-vn", "format": "binary", "path": p}
+		}
+	}
+	return map[string]any{
+		"type": "remote", "tag": "geoip-vn", "format": "binary",
+		"url": geoipVNURL, "download_detour": "direct", "update_interval": "7d",
+	}
 }
 
 // dohServer converts "https://host[:port]/path" into a sing-box https DNS server.
@@ -129,7 +294,7 @@ func dohServer(raw string) (map[string]any, error) {
 func warpEndpoint(w *settings.Warp) map[string]any {
 	return map[string]any{
 		"type":        "wireguard",
-		"tag":         "proxy",
+		"tag":         TagProxy,
 		"mtu":         1280,
 		"address":     w.Addresses,
 		"private_key": w.PrivateKey,
@@ -141,6 +306,36 @@ func warpEndpoint(w *settings.Warp) map[string]any {
 			"reserved":    w.Reserved,
 		}},
 	}
+}
+
+// cleanDomains normalises user input like "*.example.com", ".example.com",
+// "https://example.com/x" into "example.com".
+func cleanDomains(in []string) []string {
+	var out []string
+	for _, d := range in {
+		d = strings.ToLower(strings.TrimSpace(d))
+		if i := strings.Index(d, "://"); i >= 0 {
+			d = d[i+3:]
+		}
+		if i := strings.IndexAny(d, "/:"); i >= 0 {
+			d = d[:i]
+		}
+		d = strings.TrimLeft(d, "*.")
+		if d != "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func cleanList(in []string) []string {
+	var out []string
+	for _, s := range in {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func clone(m map[string]any) map[string]any {
