@@ -3,6 +3,14 @@
 import {settings} from '../models';
 import {main} from '../models';
 
+export function AddServers(arg1:string):Promise<settings.Settings>;
+
+export function AddSubscription(arg1:string,arg2:string):Promise<settings.Settings>;
+
+export function ApplyWarpLicense(arg1:string):Promise<settings.Settings>;
+
+export function CheckConnection():Promise<main.CheckResult>;
+
 export function Connect():Promise<void>;
 
 export function Disconnect():Promise<void>;
@@ -11,6 +19,28 @@ export function GetSettings():Promise<settings.Settings>;
 
 export function GetStatus():Promise<main.Status>;
 
+export function OpenDataFolder():Promise<void>;
+
+export function PingServers():Promise<Record<string, number>>;
+
+export function Quit():Promise<void>;
+
+export function Reconnect():Promise<void>;
+
+export function RefreshSubscriptions():Promise<settings.Settings>;
+
 export function RegisterWarp():Promise<settings.Settings>;
 
+export function RemoveServer(arg1:string):Promise<settings.Settings>;
+
+export function RemoveSubscription(arg1:string):Promise<settings.Settings>;
+
+export function RenameServer(arg1:string,arg2:string):Promise<settings.Settings>;
+
 export function SaveSettings(arg1:settings.Settings):Promise<void>;
+
+export function ScanWarpEndpoints():Promise<Array<main.ScanResult>>;
+
+export function SetWarpEndpoint(arg1:string,arg2:number):Promise<settings.Settings>;
+
+export function ShowWindow():Promise<void>;
