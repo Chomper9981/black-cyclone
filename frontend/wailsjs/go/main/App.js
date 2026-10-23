@@ -26,6 +26,10 @@ export function Disconnect() {
   return window['go']['main']['App']['Disconnect']();
 }
 
+export function GetLogs() {
+  return window['go']['main']['App']['GetLogs']();
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }

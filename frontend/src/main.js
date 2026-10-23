@@ -2,6 +2,7 @@ import './style.css';
 import './app.css';
 
 import {
+    GetLogs,
     GetSettings,
     SaveSettings,
     GetStatus,
@@ -1025,6 +1026,13 @@ async function init() {
     try { tab = localStorage.getItem('rcv-tab') || 'conn'; } catch { /* ignore */ }
     showTab(tab);
     render();
+    try {
+        // Lines logged before the UI subscribed (startup, auto-connect).
+        const past = await GetLogs();
+        el.log.textContent = '';
+        logLines = 0;
+        (past || []).forEach(appendLog);
+    } catch (e) { console.error('GetLogs', e); }
     try {
         settings = normalize(await GetSettings());
         fillForm(settings);

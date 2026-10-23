@@ -15,6 +15,8 @@ export function Connect():Promise<void>;
 
 export function Disconnect():Promise<void>;
 
+export function GetLogs():Promise<Array<string>>;
+
 export function GetSettings():Promise<settings.Settings>;
 
 export function GetStatus():Promise<main.Status>;

@@ -81,7 +81,10 @@ type App struct {
 
 	logMu   sync.Mutex
 	logFile *os.File
+	logBuf  []string // recent lines, so the UI can show what happened before it loaded
 }
+
+const logKeep = 500
 
 func NewApp(autostart bool) *App {
 	return &App{state: StateOff, autostart: autostart}
@@ -664,10 +667,21 @@ func (a *App) notify(title, body string) {
 	})
 }
 
+// GetLogs returns the recent log lines (the UI loads them once on start).
+func (a *App) GetLogs() []string {
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+	return append([]string(nil), a.logBuf...)
+}
+
 func (a *App) log(line string) {
 	a.logMu.Lock()
 	if a.logFile != nil {
 		fmt.Fprintf(a.logFile, "%s %s\n", time.Now().Format("2006-01-02 15:04:05"), line)
+	}
+	a.logBuf = append(a.logBuf, line)
+	if len(a.logBuf) > logKeep {
+		a.logBuf = a.logBuf[len(a.logBuf)-logKeep:]
 	}
 	a.logMu.Unlock()
 	if a.ctx != nil {
