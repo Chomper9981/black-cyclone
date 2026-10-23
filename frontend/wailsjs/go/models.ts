@@ -13,7 +13,7 @@ export namespace main {
 	        this.ip = this.convertValues(source["ip"], nettest.IPInfo);
 	        this.sites = this.convertValues(source["sites"], nettest.Site);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -156,7 +156,7 @@ export namespace settings {
 	    id: string;
 	    name: string;
 	    link: string;
-	    sub_id: string;
+	    sub_id?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Server(source);
@@ -170,24 +170,6 @@ export namespace settings {
 	        this.sub_id = source["sub_id"];
 	    }
 	}
-	export class Subscription {
-	    id: string;
-	    name: string;
-	    url: string;
-	    updated: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Subscription(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.url = source["url"];
-	        this.updated = source["updated"];
-	    }
-	}
 	export class Warp {
 	    private_key: string;
 	    peer_public_key: string;
@@ -195,10 +177,10 @@ export namespace settings {
 	    endpoint_port: number;
 	    addresses: string[];
 	    reserved: number[];
-	    device_id: string;
-	    token: string;
-	    license: string;
-	    account_type: string;
+	    device_id?: string;
+	    token?: string;
+	    license?: string;
+	    account_type?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Warp(source);
@@ -218,6 +200,24 @@ export namespace settings {
 	        this.account_type = source["account_type"];
 	    }
 	}
+	export class Subscription {
+	    id: string;
+	    name: string;
+	    url: string;
+	    updated?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Subscription(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.updated = source["updated"];
+	    }
+	}
 	export class Settings {
 	    mode: string;
 	    doh_server: string;
@@ -228,7 +228,7 @@ export namespace settings {
 	    servers: Server[];
 	    subscriptions: Subscription[];
 	    selected_server: string;
-	    custom_link: string;
+	    custom_link?: string;
 	    warp?: Warp;
 	    routing: Routing;
 	    kill_switch: boolean;
@@ -263,7 +263,7 @@ export namespace settings {
 	        this.start_minimized = source["start_minimized"];
 	        this.close_to_tray = source["close_to_tray"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -282,6 +282,7 @@ export namespace settings {
 		    return a;
 		}
 	}
+	
 
 }
 
