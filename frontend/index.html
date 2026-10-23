@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>RedCyclone VPN</title>
+</head>
+<body>
+<div id="app">
+    <header class="hdr">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-name">RedCyclone <b>VPN</b></span>
+        </div>
+        <span id="pill" class="pill off">Chưa kết nối</span>
+    </header>
+
+    <div id="warnings" class="warnings" hidden></div>
+
+    <section class="hero">
+        <button id="toggle" class="toggle" type="button">
+            <span class="toggle-ring" aria-hidden="true"></span>
+            <span id="toggle-label" class="toggle-label">Kết nối</span>
+        </button>
+        <div id="duration" class="duration">&nbsp;</div>
+        <div id="error" class="error" hidden></div>
+    </section>
+
+    <section class="block">
+        <div class="block-title">Chế độ</div>
+        <div id="modes" class="modes" role="radiogroup">
+            <label class="mode" data-mode="bypass">
+                <input type="radio" name="mode" value="bypass">
+                <span class="mode-name">Vượt chặn</span>
+                <span class="mode-desc">DNS mã hoá (DoH) + chống DPI. Không cần server, không đổi IP.</span>
+            </label>
+            <label class="mode" data-mode="warp">
+                <input type="radio" name="mode" value="warp">
+                <span class="mode-name">Cloudflare WARP</span>
+                <span class="mode-desc">Miễn phí, đổi IP, ẩn IP với website.</span>
+            </label>
+            <label class="mode" data-mode="custom">
+                <input type="radio" name="mode" value="custom">
+                <span class="mode-name">Server riêng</span>
+                <span class="mode-desc">Dùng link VLESS từ server của bạn.</span>
+            </label>
+        </div>
+
+        <div id="warp-panel" class="sub" hidden>
+            <div id="warp-none">
+                <button id="warp-register" class="btn" type="button">Đăng ký WARP</button>
+            </div>
+            <div id="warp-has" class="warp-has" hidden>
+                <span class="ok-dot" aria-hidden="true"></span>
+                <span>Đã có tài khoản WARP</span>
+                <button id="warp-reregister" class="link" type="button">đăng ký lại</button>
+            </div>
+            <div id="warp-msg" class="sub-msg" hidden></div>
+        </div>
+
+        <div id="custom-panel" class="sub" hidden>
+            <textarea id="custom-link" rows="3" spellcheck="false"
+                      placeholder="vless://uuid@host:443?security=reality..."></textarea>
+        </div>
+    </section>
+
+    <details class="block adv" id="adv">
+        <summary>Nâng cao</summary>
+        <label class="field">
+            <span>DoH server</span>
+            <input id="doh" type="text" spellcheck="false" placeholder="https://1.1.1.1/dns-query">
+        </label>
+        <label class="check" id="dpi-row">
+            <input id="dpi" type="checkbox">
+            <span>Chống DPI (GoodbyeDPI)<small>Chỉ có tác dụng ở chế độ Vượt chặn</small></span>
+        </label>
+        <label class="check">
+            <input id="lan" type="checkbox">
+            <span>Không đi qua VPN cho mạng LAN</span>
+        </label>
+        <div id="save-msg" class="sub-msg" hidden></div>
+    </details>
+
+    <details class="block log" id="log-box">
+        <summary>Nhật ký <span id="log-count" class="count"></span>
+            <button id="log-clear" class="link" type="button">xoá</button>
+        </summary>
+        <pre id="log"></pre>
+    </details>
+</div>
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
