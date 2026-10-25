@@ -1,0 +1,10 @@
+* text=auto
+
+# Shell scripts and the Gradle wrapper run on Linux/macOS: CRLF breaks them.
+*.sh       text eol=lf
+gradlew    text eol=lf
+*.desktop  text eol=lf
+
+# Windows-only scripts.
+*.bat      text eol=crlf
+*.cmd      text eol=crlf

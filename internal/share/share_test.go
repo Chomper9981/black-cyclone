@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"redcyclone-vpn/internal/runner"
 )
 
 const uuid = "11111111-2222-3333-4444-555555555555"
@@ -163,7 +165,7 @@ func TestDecodeBase64Variants(t *testing.T) {
 func TestCheckWithSingBox(t *testing.T) {
 	bin := os.Getenv("SING_BOX")
 	if bin == "" {
-		bin, _ = filepath.Abs(filepath.Join("..", "..", "bin", "sing-box.exe"))
+		bin, _ = filepath.Abs(filepath.Join("..", "..", "bin", runner.Exe("sing-box")))
 	}
 	if _, err := os.Stat(bin); err != nil {
 		bin = `D:\Projects\redcyclone-vpn\bin\sing-box.exe`

@@ -9,20 +9,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
-
-	"golang.org/x/sys/windows"
 )
 
-// Required lists the files that must exist in the bin directory.
-var Required = []string{"sing-box.exe", "goodbyedpi.exe", "WinDivert.dll", "WinDivert64.sys"}
+// Exe returns the file name of the helper binary called name on this OS
+// ("sing-box" -> "sing-box.exe" on Windows).
+func Exe(name string) string { return name + exeSuffix }
 
-// GracefulTimeout is how long Stop waits after the polite Ctrl+C before killing.
+// GracefulTimeout is how long Stop waits after the polite interrupt before killing.
 var GracefulTimeout = 3 * time.Second
 
 // BinDir finds the folder holding the helper binaries: next to the exe (installed build),
-// or the project's bin\ when running from build\bin or `wails dev`.
+// or the project's bin/ when running from build/bin or `wails dev`.
 func BinDir() string {
 	var candidates []string
 	if exe, err := os.Executable(); err == nil {
@@ -33,7 +31,7 @@ func BinDir() string {
 		candidates = append(candidates, filepath.Join(wd, "bin"))
 	}
 	for _, c := range candidates {
-		if _, err := os.Stat(filepath.Join(c, "sing-box.exe")); err == nil {
+		if _, err := os.Stat(filepath.Join(c, Exe("sing-box"))); err == nil {
 			return filepath.Clean(c)
 		}
 	}
@@ -69,17 +67,13 @@ type Proc struct {
 // Start launches exe with args. onLine receives every stdout/stderr line;
 // onExit fires once if the process ends on its own (not via Stop).
 //
-// The child is created suspended, put into the process-wide kill-on-close Job
-// Object (so it dies with us even if we crash or are killed), then resumed.
-// It gets its own hidden console (CREATE_NO_WINDOW) so Stop can deliver Ctrl+C.
+// The child is tied to our lifetime (it dies if we crash or are killed) and
+// set up so Stop can ask it to exit cleanly; see prepare / afterStart for how
+// each OS does that.
 func Start(name, exe string, args []string, onLine func(string), onExit func(error)) (*Proc, error) {
-	processCtrlC()
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = filepath.Dir(exe)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_SUSPENDED,
-	}
+	prepare(cmd)
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
 	cmd.Stderr = pw
@@ -87,16 +81,11 @@ func Start(name, exe string, args []string, onLine func(string), onExit func(err
 		pw.Close()
 		return nil, fmt.Errorf("start %s: %w", name, err)
 	}
-	pid := uint32(cmd.Process.Pid)
-	if err := assignToJob(pid); err != nil && onLine != nil {
-		// Not fatal: the child still runs, it just won't be reaped if we crash.
-		onLine(fmt.Sprintf("[%s] cảnh báo: không gán được Job Object: %v", name, err))
-	}
-	if err := resumeProcess(pid); err != nil {
+	if err := afterStart(name, cmd, onLine); err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		pw.Close()
-		return nil, fmt.Errorf("start %s: resume: %w", name, err)
+		return nil, fmt.Errorf("start %s: %w", name, err)
 	}
 	p := &Proc{Name: name, cmd: cmd, done: make(chan struct{})}
 
@@ -158,13 +147,13 @@ func (p *Proc) Wait(d time.Duration) (exited bool, err error) {
 	}
 }
 
-// Stop asks the process to exit (Ctrl+C on its console), waits up to
+// Stop asks the process to exit (Ctrl+C on Windows, SIGTERM on Linux), waits up to
 // GracefulTimeout, then kills it. It blocks until the process is gone.
 // onExit is not called for a process stopped this way. Safe on nil.
 func (p *Proc) Stop() { p.StopGraceful() }
 
 // StopGraceful is Stop, reporting whether the process exited on the polite
-// Ctrl+C (true) or had to be killed / was already gone (false).
+// interrupt (true) or had to be killed / was already gone (false).
 func (p *Proc) StopGraceful() bool {
 	if p == nil {
 		return false
@@ -176,7 +165,7 @@ func (p *Proc) StopGraceful() bool {
 		if !p.Running() {
 			return
 		}
-		if err := sendCtrlC(uint32(p.PID()), p.done); err == nil {
+		if err := interrupt(p.PID(), p.done); err == nil {
 			select {
 			case <-p.done:
 				p.graceful = true

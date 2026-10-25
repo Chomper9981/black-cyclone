@@ -8,14 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"golang.org/x/sys/windows"
 
 	"redcyclone-vpn/internal/autostart"
 	"redcyclone-vpn/internal/clash"
@@ -432,11 +430,11 @@ func (a *App) Disconnect() error {
 
 func (a *App) preflight() error {
 	if !isAdmin() {
-		return errors.New("cần chạy ứng dụng với quyền Administrator")
+		return errors.New(errNotAdmin)
 	}
 	bin := runner.BinDir()
 	if m := runner.Missing(bin); len(m) > 0 {
-		return errors.New("thiếu file trong " + bin + ": chạy scripts\\fetch-bins.ps1")
+		return errors.New("thiếu file trong " + bin + ": " + fetchBinsHint)
 	}
 	return nil
 }
@@ -478,7 +476,7 @@ func (a *App) startLocked(s settings.Settings) error {
 		args := s.DPICommand()
 		a.log(fmt.Sprintf("Khởi động GoodbyeDPI %v…", args))
 		gen := a.procGen
-		dpi, err := runner.Start("goodbyedpi", filepath.Join(bin, "goodbyedpi.exe"), args, a.log, a.onUnexpectedExit("goodbyedpi", gen))
+		dpi, err := runner.Start("goodbyedpi", filepath.Join(bin, runner.Exe("goodbyedpi")), args, a.log, a.onUnexpectedExit("goodbyedpi", gen))
 		if err != nil {
 			a.stopLocked()
 			return err
@@ -522,7 +520,7 @@ func (a *App) runSingBox(cfg []byte, label string) error {
 	a.procGen++
 	gen := a.procGen
 	a.log("Khởi động " + label + "…")
-	sb, err := runner.Start("sing-box", filepath.Join(runner.BinDir(), "sing-box.exe"),
+	sb, err := runner.Start("sing-box", filepath.Join(runner.BinDir(), runner.Exe("sing-box")),
 		[]string{"run", "-c", cfgPath, "-D", dir}, a.log, a.onUnexpectedExit("sing-box", gen))
 	if err != nil {
 		return err
@@ -706,13 +704,13 @@ func (a *App) currentServer(ctx context.Context, c *clash.Client) string {
 
 /* ---------------- Misc ---------------- */
 
-// OpenDataFolder opens %APPDATA%\BlackCyclone (logs, settings) in Explorer.
+// OpenDataFolder opens the data folder (logs, settings) in the file manager.
 func (a *App) OpenDataFolder() error {
 	dir, err := settings.Dir()
 	if err != nil {
 		return err
 	}
-	return exec.Command("explorer.exe", dir).Start()
+	return openFolder(dir)
 }
 
 func (a *App) notify(title, body string) {
@@ -765,10 +763,6 @@ func randomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
-}
-
-func isAdmin() bool {
-	return windows.GetCurrentProcessToken().IsElevated()
 }
 
 func errString(err error) string {

@@ -8,13 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"redcyclone-vpn/internal/runner"
 	"redcyclone-vpn/internal/settings"
 )
 
 const realityLink = "vless://11111111-2222-3333-4444-555555555555@vps.example.com:443?security=reality&sni=www.microsoft.com&pbk=bmXOC-F1FxEMF9dyiK2H5_1SUtzH0JuVo51h2wPfgyo&sid=abcd&fp=chrome&flow=xtls-rprx-vision&type=tcp#vps"
 
 func singBox(t *testing.T) string {
-	bin, err := filepath.Abs(filepath.Join("..", "..", "bin", "sing-box.exe"))
+	bin, err := filepath.Abs(filepath.Join("..", "..", "bin", runner.Exe("sing-box")))
 	if err != nil {
 		t.Fatal(err)
 	}

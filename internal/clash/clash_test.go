@@ -8,13 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"redcyclone-vpn/internal/runner"
 )
 
 // Runs a real sing-box (no TUN) with the Clash API and exercises the client.
 func TestAgainstSingBox(t *testing.T) {
-	bin, _ := filepath.Abs(filepath.Join("..", "..", "bin", "sing-box.exe"))
+	bin, _ := filepath.Abs(filepath.Join("..", "..", "bin", runner.Exe("sing-box")))
 	if _, err := os.Stat(bin); err != nil {
-		t.Skip("bin/sing-box.exe not found")
+		t.Skip("bin/" + runner.Exe("sing-box") + " not found")
 	}
 	addr, err := FreeAddr()
 	if err != nil {

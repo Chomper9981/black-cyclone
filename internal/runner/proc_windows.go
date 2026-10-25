@@ -3,6 +3,7 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -12,6 +13,38 @@ import (
 
 	"golang.org/x/sys/windows"
 )
+
+const exeSuffix = ".exe"
+
+// Required lists the files that must exist in the bin directory.
+var Required = []string{"sing-box.exe", "goodbyedpi.exe", "WinDivert.dll", "WinDivert64.sys"}
+
+// prepare creates the child suspended (afterStart puts it in the Job Object
+// before it runs) with its own hidden console (CREATE_NO_WINDOW) so Stop can
+// deliver Ctrl+C.
+func prepare(cmd *exec.Cmd) {
+	processCtrlC()
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_SUSPENDED,
+	}
+}
+
+// afterStart puts the suspended child into the process-wide kill-on-close Job
+// Object (so it dies with us even if we crash or are killed), then resumes it.
+func afterStart(name string, cmd *exec.Cmd, onLine func(string)) error {
+	pid := uint32(cmd.Process.Pid)
+	if err := assignToJob(pid); err != nil && onLine != nil {
+		// Not fatal: the child still runs, it just won't be reaped if we crash.
+		onLine(fmt.Sprintf("[%s] cảnh báo: không gán được Job Object: %v", name, err))
+	}
+	if err := resumeProcess(pid); err != nil {
+		return fmt.Errorf("resume: %w", err)
+	}
+	return nil
+}
+
+func interrupt(pid int, done <-chan struct{}) error { return sendCtrlC(uint32(pid), done) }
 
 var (
 	kernel32                  = windows.NewLazySystemDLL("kernel32.dll")
