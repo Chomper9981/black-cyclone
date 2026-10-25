@@ -353,11 +353,17 @@ async function runAction(op, fn) {
 
 function renderWarnings() {
     const parts = [];
-    if (!status.admin) parts.push('<p>Cần chạy với quyền Administrator.</p>');
+    const linux = status.os === 'linux';
+    if (!status.admin) {
+        parts.push(linux
+            ? '<p>App chưa có quyền tạo card mạng ảo. Cài bằng <code>linux/install.sh</code>, hoặc chạy ' +
+              '<code>sudo setcap cap_net_admin,cap_net_raw+ep</code> cho file BlackCyclone rồi mở lại.</p>'
+            : '<p>Cần chạy với quyền Administrator.</p>');
+    }
     if (!status.bins_ok) {
         const missing = (status.missing || []).map((m) => `<li><code>${escapeHtml(m)}</code></li>`).join('');
         parts.push(`<p>Thiếu file cần thiết${missing ? ':' : '.'}</p>${missing ? `<ul>${missing}</ul>` : ''}` +
-            '<p>Hãy chạy <code>scripts\\fetch-bins.ps1</code> rồi mở lại ứng dụng.</p>');
+            `<p>Hãy chạy <code>${linux ? 'linux/fetch-bins.sh' : 'scripts\\fetch-bins.ps1'}</code> rồi mở lại ứng dụng.</p>`);
     }
     el.warnings.hidden = parts.length === 0;
     el.warnings.innerHTML = parts.join('');
@@ -645,8 +651,23 @@ function render() {
 function applyStatus(st) {
     if (!st) return;
     status = {...status, ...st, missing: st.missing || [], warnings: st.warnings || []};
+    applyOS(status.os);
     if (connState() !== 'on') stats = null;
     render();
+}
+
+// applyOS switches the OS-specific texts (.os-win / .os-linux, data-linux*) once.
+function applyOS(os) {
+    if (!os || document.body.dataset.os === os) return;
+    document.body.dataset.os = os;
+    if (os !== 'linux') return;
+    for (const o of el.dpiPreset.querySelectorAll('option[data-linux]')) o.textContent = o.dataset.linux;
+    // No GoodbyeDPI arguments on Linux; a saved "custom" behaves like the default.
+    const wasCustom = el.dpiPreset.value === 'custom';
+    el.dpiPreset.querySelector('option[value="custom"]')?.remove();
+    if (wasCustom || el.dpiPreset.selectedIndex < 0) el.dpiPreset.value = '9';
+    el.dpiPreset.setAttribute('aria-label', 'Kiểu chống DPI');
+    for (const t of document.querySelectorAll('[data-linux-placeholder]')) t.placeholder = t.dataset.linuxPlaceholder;
 }
 
 async function pollStatus() {

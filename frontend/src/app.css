@@ -377,3 +377,9 @@ details.inner > input + .row { margin-top: 6px; }
 .kv .help { margin-top: 0; margin-left: auto; }
 .log .hint { margin: 6px 0; }
 .inner .hint { margin: 6px 0; }
+
+/* OS-specific text; <body data-os> comes from the backend status. */
+body[data-os="linux"] .os-win,
+body:not([data-os="linux"]) .os-linux { display: none !important; }
+/* The first Linux paragraph after the hidden Windows ones starts the box. */
+body[data-os="linux"] .help-text p.os-win + p.os-linux { margin-top: 0; }

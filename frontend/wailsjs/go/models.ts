@@ -54,6 +54,7 @@ export namespace main {
 	    mode: string;
 	    since: string;
 	    admin: boolean;
+	    os: string;
 	    bins_ok: boolean;
 	    missing: string[];
 	    error: string;
@@ -73,6 +74,7 @@ export namespace main {
 	        this.mode = source["mode"];
 	        this.since = source["since"];
 	        this.admin = source["admin"];
+	        this.os = source["os"];
 	        this.bins_ok = source["bins_ok"];
 	        this.missing = source["missing"];
 	        this.error = source["error"];

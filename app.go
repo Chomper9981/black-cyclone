@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,6 +39,7 @@ type Status struct {
 	Mode     string   `json:"mode"`
 	Since    string   `json:"since"`
 	Admin    bool     `json:"admin"`
+	OS       string   `json:"os"` // runtime.GOOS: the UI adapts labels and hints
 	BinsOK   bool     `json:"bins_ok"`
 	Missing  []string `json:"missing"`
 	Error    string   `json:"error"`
@@ -339,6 +341,7 @@ func (a *App) statusLocked() Status {
 		Running:  a.state != StateOff,
 		State:    a.state,
 		Admin:    isAdmin(),
+		OS:       goruntime.GOOS,
 		BinsOK:   len(missing) == 0,
 		Missing:  missing,
 		Error:    a.lastErr,
@@ -451,12 +454,18 @@ func (a *App) startLocked(s settings.Settings) error {
 		return err
 	}
 	secret := randomHex(16)
-	cfg, warnings, err := singbox.Build(s, singbox.Options{
+	opts := singbox.Options{
 		BinDir:      bin,
 		CacheFile:   filepath.Join(dir, "cache.db"),
 		ClashAPI:    addr,
 		ClashSecret: secret,
-	})
+	}
+	useDPI := s.Mode == settings.ModeBypass && s.UseDPI
+	if useDPI && !hasGoodbyeDPI {
+		opts.TLSFragment, opts.BlockQUIC = s.TLSFragment()
+		a.log(fmt.Sprintf("Chống DPI: phân mảnh TLS (%s), chặn QUIC: %v", opts.TLSFragment, opts.BlockQUIC))
+	}
+	cfg, warnings, err := singbox.Build(s, opts)
 	if err != nil {
 		return err
 	}
@@ -472,7 +481,7 @@ func (a *App) startLocked(s settings.Settings) error {
 	a.clash = clash.New(addr, secret)
 	a.server = ""
 
-	if s.Mode == settings.ModeBypass && s.UseDPI {
+	if useDPI && hasGoodbyeDPI {
 		args := s.DPICommand()
 		a.log(fmt.Sprintf("Khởi động GoodbyeDPI %v…", args))
 		gen := a.procGen

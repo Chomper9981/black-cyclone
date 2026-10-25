@@ -20,6 +20,12 @@ type Options struct {
 	CacheFile   string // sing-box cache.db (rule-set cache, selected server)
 	ClashAPI    string // "127.0.0.1:port" for stats / server switching; empty disables
 	ClashSecret string
+
+	// TLSFragment splits the TLS ClientHello so DPI cannot read the SNI: "tcp"
+	// (into TCP segments) or "record" (into TLS records); empty disables. Linux
+	// uses this in bypass mode in place of GoodbyeDPI.
+	TLSFragment string
+	BlockQUIC   bool // reject QUIC so browsers fall back to TCP, where fragmentation applies
 }
 
 // Outbound tags used by the app (the Clash API addresses them by tag).
@@ -83,6 +89,15 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 	rules := []any{
 		map[string]any{"action": "sniff"},
 		map[string]any{"protocol": "dns", "action": "hijack-dns"},
+	}
+	if o.BlockQUIC {
+		rules = append(rules, map[string]any{"protocol": "quic", "action": "reject"})
+	}
+	switch o.TLSFragment {
+	case "tcp":
+		rules = append(rules, map[string]any{"action": "route-options", "tls_fragment": true})
+	case "record":
+		rules = append(rules, map[string]any{"action": "route-options", "tls_record_fragment": true})
 	}
 	if s.BypassLAN {
 		rules = append(rules, map[string]any{"ip_is_private": true, "outbound": "direct"})

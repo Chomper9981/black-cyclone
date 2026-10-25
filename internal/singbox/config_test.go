@@ -20,7 +20,7 @@ func singBox(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(bin); err != nil {
-		t.Skip("bin/sing-box.exe not found; run scripts/fetch-bins.ps1")
+		t.Skip("bin/" + runner.Exe("sing-box") + " not found; run the fetch-bins script")
 	}
 	return bin
 }
@@ -92,6 +92,20 @@ func TestCheckWithSingBox(t *testing.T) {
 		}
 		check(t, bin, cfg)
 	})
+	for _, mode := range []string{"tcp", "record"} {
+		t.Run("bypass-fragment-"+mode, func(t *testing.T) {
+			o := opts
+			o.TLSFragment, o.BlockQUIC = mode, mode == "tcp"
+			cfg, _, err := Build(base, o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(cfg), `"route-options"`) {
+				t.Fatal("no route-options rule")
+			}
+			check(t, bin, cfg)
+		})
+	}
 }
 
 func TestSelector(t *testing.T) {

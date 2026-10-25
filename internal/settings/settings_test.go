@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-func TestDPAPIRoundTrip(t *testing.T) {
+func TestProtectRoundTrip(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // Linux keeps its key in the config dir
 	in := []byte(`{"private_key":"secret"}`)
 	enc, err := protect(in)
 	if err != nil {
@@ -41,6 +42,19 @@ func TestDPICommand(t *testing.T) {
 	s.DPIPreset, s.DPIArgs = "custom", " -f 2  -e 2 "
 	if got := s.DPICommand(); len(got) != 4 {
 		t.Fatalf("custom args: %v", got)
+	}
+}
+
+func TestTLSFragment(t *testing.T) {
+	for preset, want := range map[string]struct {
+		mode string
+		quic bool
+	}{"5": {"record", false}, "9": {"tcp", false}, "9q": {"tcp", true}, "custom": {"tcp", false}} {
+		s := Default()
+		s.DPIPreset = preset
+		if mode, quic := s.TLSFragment(); mode != want.mode || quic != want.quic {
+			t.Errorf("%s: got %s/%v, want %s/%v", preset, mode, quic, want.mode, want.quic)
+		}
 	}
 }
 

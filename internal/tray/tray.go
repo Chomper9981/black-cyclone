@@ -8,7 +8,6 @@
 package tray
 
 import (
-	_ "embed"
 	"runtime"
 	"sync"
 	"time"
@@ -16,12 +15,6 @@ import (
 
 	"github.com/energye/systray"
 )
-
-//go:embed connected.ico
-var iconConnected []byte
-
-//go:embed disconnected.ico
-var iconDisconnected []byte
 
 // Callbacks are the actions triggered from the tray. Nil entries are ignored.
 type Callbacks struct {
@@ -50,7 +43,7 @@ var (
 )
 
 // Start shows the tray icon and returns immediately. icon, if non-nil,
-// replaces the embedded "connected" icon (must be .ico bytes); the
+// replaces the embedded "connected" icon (.ico on Windows, .png on Linux); the
 // disconnected icon is always the embedded greyscale one. Start may be
 // called only once per process (the underlying library is single-shot).
 func Start(icon []byte, cb Callbacks) {

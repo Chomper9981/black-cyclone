@@ -1,6 +1,11 @@
 # Black Cyclone
 
-Ứng dụng Windows giúp vượt chặn của nhà mạng. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, `GoodbyeDPI` chống DPI.
+Ứng dụng giúp vượt chặn của nhà mạng, cho Windows và Linux. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, `GoodbyeDPI` chống DPI (trên Linux dùng phân mảnh TLS của sing-box).
+
+- Bản Linux: xem [`linux/README.md`](linux/README.md) (build, cài, cấp quyền, khác biệt với bản Windows).
+- Bản Android: xem [`mobile/README.md`](mobile/README.md).
+
+Phần dưới đây mô tả bản Windows; phần lớn tính năng giống hệt trên Linux.
 
 ## Chế độ
 
@@ -52,12 +57,16 @@ internal/subscription      tải + gộp subscription
 internal/warp              đăng ký WARP, key WARP+, quét endpoint bằng handshake WireGuard
 internal/clash             client Clash API của sing-box (lưu lượng, đổi server, đo delay)
 internal/nettest           IP công khai, kiểm tra trang web, TCP ping
-internal/runner            chạy/dừng sing-box.exe, goodbyedpi.exe (Job Object, dừng êm), đẩy log lên UI
+internal/runner            chạy/dừng sing-box, goodbyedpi (Windows: Job Object + Ctrl-Break; Linux: PDEATHSIG + SIGTERM), đẩy log lên UI
 internal/tray              icon khay hệ thống
-internal/autostart         khởi động cùng Windows qua Task Scheduler
+internal/autostart         khởi động cùng máy (Windows: Task Scheduler; Linux: XDG autostart)
 frontend/                  UI (vanilla JS + Vite)
-scripts/fetch-bins.ps1     tải binary phụ trợ
+scripts/fetch-bins.ps1     tải binary phụ trợ (Windows)
+linux/                     script build / tải binary / cài đặt cho Linux
+mobile/                    bản Android (Kotlin + Go core qua gomobile)
 ```
+
+Code riêng cho từng hệ điều hành nằm trong file `*_windows.go` / `*_linux.go` cạnh phần dùng chung; Go tự chọn file theo hệ điều hành lúc build.
 
 ## Test
 

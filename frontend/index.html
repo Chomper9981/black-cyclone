@@ -101,12 +101,12 @@
             <div class="opt">
                 <label class="check">
                     <input id="dpi" type="checkbox">
-                    <span>Bật GoodbyeDPI<small>Làm rối gói tin để bộ lọc của nhà mạng không đọc được tên trang</small></span>
+                    <span><span class="os-win">Bật GoodbyeDPI</span><span class="os-linux">Bật chống DPI</span><small>Làm rối gói tin để bộ lọc của nhà mạng không đọc được tên trang</small></span>
                 </label>
                 <button class="help" type="button" data-help="h-dpi" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-dpi" class="help-text" hidden>
-                <p>Khi bạn mở một trang HTTPS, tên trang (SNI) nằm ở dạng chữ thường trong gói tin đầu tiên. Bộ lọc DPI của nhà mạng đọc tên đó để chặn hoặc bóp băng thông. GoodbyeDPI chia nhỏ / làm sai lệch gói tin này để bộ lọc không nhận ra, còn website vẫn nhận đủ và hoạt động bình thường.</p>
+                <p>Khi bạn mở một trang HTTPS, tên trang (SNI) nằm ở dạng chữ thường trong gói tin đầu tiên. Bộ lọc DPI của nhà mạng đọc tên đó để chặn hoặc bóp băng thông. <span class="os-win">GoodbyeDPI chia nhỏ / làm sai lệch gói tin này</span><span class="os-linux">sing-box chia nhỏ gói tin này</span> để bộ lọc không nhận ra, còn website vẫn nhận đủ và hoạt động bình thường.</p>
                 <p>Tắt đi nếu một trang chỉ hỏng khi bật nó. Chỉ có tác dụng ở chế độ Vượt chặn.</p>
             </div>
             <div id="dpi-opts" class="sub">
@@ -116,17 +116,21 @@
                         <button class="help" type="button" data-help="h-dpi-preset" aria-expanded="false" title="Giải thích">?</button>
                     </div>
                     <select id="dpi-preset" aria-label="Kiểu GoodbyeDPI">
-                        <option value="9">9 — mặc định, chống DPI mạnh + gói giả</option>
-                        <option value="9q">9q — như 9 + chặn QUIC (giúp YouTube)</option>
-                        <option value="5">5 — nhẹ</option>
-                        <option value="custom">Tuỳ chỉnh…</option>
+                        <option value="9" data-linux="Chia gói TCP — mặc định">9 — mặc định, chống DPI mạnh + gói giả</option>
+                        <option value="9q" data-linux="Chia gói TCP + chặn QUIC (giúp YouTube)">9q — như 9 + chặn QUIC (giúp YouTube)</option>
+                        <option value="5" data-linux="Chia bản ghi TLS — nhẹ">5 — nhẹ</option>
+                        <option value="custom" class="os-win">Tuỳ chỉnh…</option>
                     </select>
                 </div>
                 <div id="h-dpi-preset" class="help-text" hidden>
-                    <p><b>9</b> — mạnh nhất: chia nhỏ gói tin và gửi thêm gói giả (sai checksum / sai số thứ tự) để đánh lừa bộ lọc. Nên dùng mặc định.</p>
-                    <p><b>9q</b> — như 9 và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà GoodbyeDPI xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
-                    <p><b>5</b> — nhẹ, không gửi gói giả. Dùng nếu kiểu 9 làm vài trang bị lỗi.</p>
-                    <p><b>Tuỳ chỉnh</b> — tự nhập tham số GoodbyeDPI (xem <code>goodbyedpi.exe --help</code>).</p>
+                    <p class="os-win"><b>9</b> — mạnh nhất: chia nhỏ gói tin và gửi thêm gói giả (sai checksum / sai số thứ tự) để đánh lừa bộ lọc. Nên dùng mặc định.</p>
+                    <p class="os-win"><b>9q</b> — như 9 và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà GoodbyeDPI xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
+                    <p class="os-win"><b>5</b> — nhẹ, không gửi gói giả. Dùng nếu kiểu 9 làm vài trang bị lỗi.</p>
+                    <p class="os-win"><b>Tuỳ chỉnh</b> — tự nhập tham số GoodbyeDPI (xem <code>goodbyedpi.exe --help</code>).</p>
+                    <p class="os-linux"><b>Chia gói TCP</b> — gói tin đầu tiên (chứa tên trang) được gửi thành nhiều gói TCP nhỏ, bộ lọc chỉ thấy từng mảnh. Nên dùng mặc định.</p>
+                    <p class="os-linux"><b>Chia gói TCP + chặn QUIC</b> — như trên và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà cách chia gói xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
+                    <p class="os-linux"><b>Chia bản ghi TLS</b> — nhẹ hơn: tách tên trang ra nhiều bản ghi TLS trong cùng gói tin. Dùng nếu kiểu mặc định làm vài trang bị lỗi.</p>
+                    <p class="os-linux">Trên Linux không có GoodbyeDPI; chống DPI do sing-box đảm nhận.</p>
                 </div>
                 <label id="dpi-args-row" class="field" hidden>
                     <span>Tham số GoodbyeDPI <small>(cách nhau bằng dấu cách)</small></span>
@@ -282,14 +286,15 @@
             </div>
             <div class="field">
                 <div class="row-title">
-                    <span>Ứng dụng đi thẳng <small>(tên file .exe)</small></span>
+                    <span>Ứng dụng đi thẳng <small><span class="os-win">(tên file .exe)</span><span class="os-linux">(tên tiến trình)</span></small></span>
                     <button class="help" type="button" data-help="h-direct-procs" aria-expanded="false" title="Giải thích">?</button>
                 </div>
                 <div id="h-direct-procs" class="help-text" hidden>
                     <p>Mọi traffic của các chương trình này đi thẳng, bất kể tên miền. Hợp với game online (ping thấp hơn), Steam hay torrent (không tốn băng thông server).</p>
-                    <p>Nhập tên file, mỗi dòng một tên, ví dụ <code>steam.exe</code>. Xem tên file trong Task Manager → tab Details.</p>
+                    <p class="os-win">Nhập tên file, mỗi dòng một tên, ví dụ <code>steam.exe</code>. Xem tên file trong Task Manager → tab Details.</p>
+                    <p class="os-linux">Nhập tên tiến trình, mỗi dòng một tên, ví dụ <code>steam</code>. Xem tên bằng System Monitor hoặc lệnh <code>ps -e</code>.</p>
                 </div>
-                <textarea id="r-direct-procs" rows="2" spellcheck="false" placeholder="steam.exe" aria-label="Ứng dụng đi thẳng"></textarea>
+                <textarea id="r-direct-procs" rows="2" spellcheck="false" placeholder="steam.exe" data-linux-placeholder="steam" aria-label="Ứng dụng đi thẳng"></textarea>
             </div>
         </section>
         <section class="block">
@@ -333,7 +338,7 @@
                 <button class="help" type="button" data-help="h-ks" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-ks" class="help-text" hidden>
-                <p>Bình thường khi VPN dừng bất ngờ, Windows tự quay về mạng thường và mọi trang bạn đang mở sẽ thấy IP thật. Với kill switch, app giữ card mạng ảo và <b>chặn mọi kết nối Internet</b> thay vào đó.</p>
+                <p>Bình thường khi VPN dừng bất ngờ, máy tự quay về mạng thường và mọi trang bạn đang mở sẽ thấy IP thật. Với kill switch, app giữ card mạng ảo và <b>chặn mọi kết nối Internet</b> thay vào đó.</p>
                 <p>Mạng bị chặn cho đến khi kết nối lại thành công hoặc bạn bấm <b>Ngắt kết nối</b>. Mạng LAN vẫn dùng được nếu bật mục LAN ở tab Định tuyến. Không áp dụng cho chế độ Vượt chặn vì chế độ đó không giấu IP.</p>
             </div>
             <div class="opt">
@@ -350,7 +355,7 @@
             <div class="opt">
                 <label class="check">
                     <input id="notify" type="checkbox">
-                    <span>Thông báo Windows<small>Báo khi VPN rớt, đã kết nối lại hoặc không kết nối được</small></span>
+                    <span>Thông báo hệ thống<small>Báo khi VPN rớt, đã kết nối lại hoặc không kết nối được</small></span>
                 </label>
                 <button class="help" type="button" data-help="h-notify" aria-expanded="false" title="Giải thích">?</button>
             </div>
@@ -368,28 +373,31 @@
                 <button class="help" type="button" data-help="h-autoconnect" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-autoconnect" class="help-text" hidden>
-                <p>Mở app là kết nối ngay, không cần bấm nút. Kết hợp với “Khởi động cùng Windows” để máy luôn có VPN từ lúc đăng nhập. Nếu kết nối thất bại, app báo lỗi (và thông báo Windows nếu bật).</p>
+                <p>Mở app là kết nối ngay, không cần bấm nút. Kết hợp với “Khởi động cùng <span class="os-win">Windows</span><span class="os-linux">máy</span>” để máy luôn có VPN từ lúc đăng nhập. Nếu kết nối thất bại, app báo lỗi (và hiện thông báo nếu bật).</p>
             </div>
             <div class="opt">
                 <label class="check">
                     <input id="start-win" type="checkbox">
-                    <span>Khởi động cùng Windows<small>Tự chạy khi đăng nhập, không hỏi quyền Administrator</small></span>
+                    <span>Khởi động cùng <span class="os-win">Windows</span><span class="os-linux">máy</span><small>Tự chạy khi đăng nhập<span class="os-win">, không hỏi quyền Administrator</span><span class="os-linux"></span></small></span>
                 </label>
                 <button class="help" type="button" data-help="h-startwin" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-startwin" class="help-text" hidden>
-                <p>App tạo một tác vụ “Black Cyclone” trong Task Scheduler để chạy khi bạn đăng nhập, với quyền Administrator mà không hiện hộp thoại UAC. App mở khoảng 10 giây sau khi đăng nhập để Windows kịp khởi động xong.</p>
-                <p>Tắt mục này sẽ xoá tác vụ. Gỡ cài đặt app cũng tự xoá tác vụ.</p>
+                <p class="os-win">App tạo một tác vụ “Black Cyclone” trong Task Scheduler để chạy khi bạn đăng nhập, với quyền Administrator mà không hiện hộp thoại UAC. App mở khoảng 10 giây sau khi đăng nhập để Windows kịp khởi động xong.</p>
+                <p class="os-win">Tắt mục này sẽ xoá tác vụ. Gỡ cài đặt app cũng tự xoá tác vụ.</p>
+                <p class="os-linux">App tạo file <code>~/.config/autostart/blackcyclone.desktop</code> để môi trường desktop (GNOME, KDE, XFCE…) chạy app khi bạn đăng nhập, khoảng 10 giây sau để thanh tác vụ kịp hiện. Không cần nhập mật khẩu vì quyền mạng đã được cấp sẵn cho file app.</p>
+                <p class="os-linux">Tắt mục này sẽ xoá file đó.</p>
             </div>
             <div class="opt">
                 <label class="check indent" id="start-min-row">
                     <input id="start-min" type="checkbox">
-                    <span>Ẩn xuống khay khi khởi động cùng Windows<small>Chỉ hiện icon, không mở cửa sổ</small></span>
+                    <span>Ẩn xuống khay khi khởi động cùng <span class="os-win">Windows</span><span class="os-linux">máy</span><small>Chỉ hiện icon, không mở cửa sổ</small></span>
                 </label>
                 <button class="help" type="button" data-help="h-startmin" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-startmin" class="help-text" hidden>
-                <p>Khi app tự chạy cùng Windows, nó chỉ hiện icon ở khay hệ thống (góc phải thanh taskbar, có thể nằm trong mũi tên ^) mà không mở cửa sổ. Bấm vào icon để mở. Không ảnh hưởng khi bạn tự mở app.</p>
+                <p class="os-win">Khi app tự chạy cùng Windows, nó chỉ hiện icon ở khay hệ thống (góc phải thanh taskbar, có thể nằm trong mũi tên ^) mà không mở cửa sổ. Bấm vào icon để mở. Không ảnh hưởng khi bạn tự mở app.</p>
+                <p class="os-linux">Khi app tự chạy lúc đăng nhập, nó chỉ hiện icon ở khay hệ thống mà không mở cửa sổ. Bấm vào icon để mở. Không ảnh hưởng khi bạn tự mở app. Trên GNOME cần cài extension “AppIndicator and KStatusNotifierItem Support” thì mới thấy icon khay; nếu không có khay, đừng bật mục này.</p>
             </div>
             <div class="opt">
                 <label class="check">
@@ -430,7 +438,7 @@
             <summary>Nhật ký <span id="log-count" class="count"></span>
                 <button id="log-clear" class="link" type="button">xoá</button>
             </summary>
-            <p class="hint">Hoạt động của app, sing-box và GoodbyeDPI. Khi báo lỗi, gửi kèm file <code>app.log</code> trong thư mục dữ liệu.</p>
+            <p class="hint">Hoạt động của app, sing-box<span class="os-win"> và GoodbyeDPI</span><span class="os-linux"></span>. Khi báo lỗi, gửi kèm file <code>app.log</code> trong thư mục dữ liệu.</p>
             <pre id="log"></pre>
         </details>
     </div>

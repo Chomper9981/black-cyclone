@@ -1,4 +1,4 @@
-// Package autostart registers the app to start at user logon via Task Scheduler.
+// On Windows the app starts at logon via Task Scheduler.
 //
 // A Run-key entry cannot launch an app whose manifest requires elevation
 // without a UAC prompt (Windows silently skips it), so we create a scheduled

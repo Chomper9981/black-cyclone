@@ -1,6 +1,7 @@
-// Package settings persists user configuration under %APPDATA%\BlackCyclone.
-// The file is encrypted with Windows DPAPI (current user) because it holds
-// WireGuard private keys and proxy credentials.
+// Package settings persists user configuration under %APPDATA%\BlackCyclone
+// (Windows) or ~/.config/BlackCyclone (Linux). The file is encrypted because it
+// holds WireGuard private keys and proxy credentials: with DPAPI (current user)
+// on Windows, with a per-user key file on Linux (see secret_linux.go).
 package settings
 
 import (
@@ -134,6 +135,21 @@ func (s Settings) DPICommand() []string {
 	return DPIPresets["9"]
 }
 
+// TLSFragment maps the DPI preset onto sing-box's own TLS fragmentation, used
+// where GoodbyeDPI does not exist (Linux). mode is "record" for "5" (split the
+// ClientHello into TLS records, lighter) and "tcp" otherwise (split it into TCP
+// segments); "9q" also blocks QUIC. Custom GoodbyeDPI arguments have no
+// equivalent and behave like "9".
+func (s Settings) TLSFragment() (mode string, blockQUIC bool) {
+	switch s.DPIPreset {
+	case "5":
+		return "record", false
+	case "9q":
+		return "tcp", true
+	}
+	return "tcp", false
+}
+
 // NewID returns a short random identifier for servers/subscriptions.
 func NewID() string {
 	var b [6]byte
@@ -179,7 +195,7 @@ func path() (string, error) {
 	return filepath.Join(dir, "settings.json"), nil
 }
 
-// encMagic prefixes DPAPI-encrypted settings files; plain JSON (v1) starts with '{'.
+// encMagic prefixes encrypted settings files; plain JSON (v1) starts with '{'.
 const encMagic = "RCV1"
 
 func Load() (Settings, error) {

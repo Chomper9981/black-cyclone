@@ -52,6 +52,12 @@ func Missing(dir string) []string {
 	return out
 }
 
+// live holds the PIDs of children started by Start that have not exited yet,
+// so KillStale can tell them apart from leftovers.
+var live sync.Map
+
+func isLive(pid int) bool { _, ok := live.Load(pid); return ok }
+
 // Proc is a supervised child process whose output is forwarded line by line.
 type Proc struct {
 	Name     string
@@ -88,6 +94,8 @@ func Start(name, exe string, args []string, onLine func(string), onExit func(err
 		return nil, fmt.Errorf("start %s: %w", name, err)
 	}
 	p := &Proc{Name: name, cmd: cmd, done: make(chan struct{})}
+	pid := cmd.Process.Pid
+	live.Store(pid, struct{}{})
 
 	go func() {
 		sc := bufio.NewScanner(pr)
@@ -102,6 +110,7 @@ func Start(name, exe string, args []string, onLine func(string), onExit func(err
 	go func() {
 		err := cmd.Wait()
 		pw.Close()
+		live.Delete(pid)
 		p.mu.Lock()
 		p.err = err
 		stopping := p.stopping

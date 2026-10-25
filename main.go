@@ -8,12 +8,16 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"redcyclone-vpn/internal/settings"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed build/appicon.png
+var appIcon []byte
 
 func main() {
 	// --autostart is passed by the logon task (see internal/autostart).
@@ -44,6 +48,13 @@ func main() {
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId:               "redcyclone-vpn-9f3b2c",
 			OnSecondInstanceLaunch: func(options.SecondInstanceData) { app.ShowWindow() },
+		},
+		Linux: &linux.Options{
+			Icon:        appIcon,
+			ProgramName: "blackcyclone", // WM_CLASS, matches StartupWMClass in linux/blackcyclone.desktop
+			// Wails' default when Linux is nil; GPU compositing blanks the
+			// window on some drivers (wailsapp/wails#2977).
+			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
 		},
 		Bind: []interface{}{
 			app,
