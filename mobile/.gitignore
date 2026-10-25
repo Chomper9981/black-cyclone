@@ -1,0 +1,5 @@
+android/keystore/
+android/keystore.properties
+android/app/libs/*.aar
+android/app/libs/*-sources.jar
+dist/
