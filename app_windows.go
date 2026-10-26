@@ -8,7 +8,7 @@ import (
 
 const (
 	errNotAdmin   = "cần chạy ứng dụng với quyền Administrator"
-	fetchBinsHint = `chạy scripts\fetch-bins.ps1`
+	fetchBinsHint = `chạy windows\fetch-bins.ps1`
 	hasGoodbyeDPI = true
 )
 

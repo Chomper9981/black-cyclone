@@ -30,7 +30,7 @@ Phần dưới đây mô tả bản Windows; phần lớn tính năng giống h�
 ```powershell
 winget install GoLang.Go
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
-powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1   # tải sing-box + GoodbyeDPI (phiên bản cố định, kiểm SHA-256) vào bin\
+powershell -ExecutionPolicy Bypass -File windows\fetch-bins.ps1   # tải sing-box + GoodbyeDPI (phiên bản cố định, kiểm SHA-256) vào bin\
 ```
 
 ## Chạy / build
@@ -43,7 +43,7 @@ wails build -nsis         # thêm bộ cài, đã gói kèm bin\
 
 Khi phát hành không dùng bộ cài, đặt thư mục `bin\` cạnh `BlackCyclone.exe`. Ở chế độ dev, app tự tìm `bin\` ở gốc project.
 
-Nâng cấp sing-box: sửa URL + SHA-256 trong `scripts\fetch-bins.ps1`, chạy lại rồi `go test ./internal/...` (test chạy `sing-box check` thật với mọi kiểu config).
+Nâng cấp sing-box: sửa URL + SHA-256 trong `windows\fetch-bins.ps1`, chạy lại rồi `go test ./internal/...` (test chạy `sing-box check` thật với mọi kiểu config).
 
 ## Cấu trúc
 
@@ -61,12 +61,12 @@ internal/runner            chạy/dừng sing-box, goodbyedpi (Windows: Job Obje
 internal/tray              icon khay hệ thống
 internal/autostart         khởi động cùng máy (Windows: Task Scheduler; Linux: XDG autostart)
 frontend/                  UI (vanilla JS + Vite)
-scripts/fetch-bins.ps1     tải binary phụ trợ (Windows)
+windows/                   script tải binary phụ trợ cho Windows
 linux/                     script build / tải binary / cài đặt cho Linux
 mobile/                    bản Android (Kotlin + Go core qua gomobile)
 ```
 
-Code riêng cho từng hệ điều hành nằm trong file `*_windows.go` / `*_linux.go` cạnh phần dùng chung; Go tự chọn file theo hệ điều hành lúc build.
+Code riêng cho từng hệ điều hành nằm trong file `*_windows.go` / `*_linux.go` cạnh phần dùng chung; Go tự chọn file theo hệ điều hành lúc build. Thư mục `windows/` và `linux/` chỉ chứa script build / cài đặt / đóng gói của từng nền tảng; `mobile/` là bản Android riêng.
 
 ## Test
 

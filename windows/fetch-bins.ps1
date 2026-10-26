@@ -2,7 +2,7 @@
 # Versions are pinned and verified by SHA-256: sing-box changes its config format
 # between releases, so bump these together with internal/singbox, its tests
 # and linux/fetch-bins.sh.
-# Usage: powershell -ExecutionPolicy Bypass -File scripts\fetch-bins.ps1
+# Usage: powershell -ExecutionPolicy Bypass -File windows\fetch-bins.ps1
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 

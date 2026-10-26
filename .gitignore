@@ -1,7 +1,7 @@
 build/bin
 frontend/dist
 frontend/node_modules
-# runtime binaries (scripts/fetch-bins.ps1)
+# runtime binaries (windows/fetch-bins.ps1)
 bin/
 .claude/
 # `go build .` output

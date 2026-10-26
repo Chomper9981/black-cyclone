@@ -170,7 +170,7 @@ func TestCheckWithSingBox(t *testing.T) {
 	if _, err := os.Stat(bin); err != nil {
 		bin = `D:\Projects\redcyclone-vpn\bin\sing-box.exe`
 		if _, err := os.Stat(bin); err != nil {
-			t.Skip("sing-box.exe not found; set SING_BOX or run scripts/fetch-bins.ps1")
+			t.Skip("sing-box.exe not found; set SING_BOX or run windows/fetch-bins.ps1")
 		}
 	}
 	for _, s := range samples() {

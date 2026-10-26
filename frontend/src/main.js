@@ -363,7 +363,7 @@ function renderWarnings() {
     if (!status.bins_ok) {
         const missing = (status.missing || []).map((m) => `<li><code>${escapeHtml(m)}</code></li>`).join('');
         parts.push(`<p>Thiếu file cần thiết${missing ? ':' : '.'}</p>${missing ? `<ul>${missing}</ul>` : ''}` +
-            `<p>Hãy chạy <code>${linux ? 'linux/fetch-bins.sh' : 'scripts\\fetch-bins.ps1'}</code> rồi mở lại ứng dụng.</p>`);
+            `<p>Hãy chạy <code>${linux ? 'linux/fetch-bins.sh' : 'windows\\fetch-bins.ps1'}</code> rồi mở lại ứng dụng.</p>`);
     }
     el.warnings.hidden = parts.length === 0;
     el.warnings.innerHTML = parts.join('');

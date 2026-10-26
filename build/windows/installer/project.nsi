@@ -96,7 +96,7 @@ Section
 
     !insertmacro wails.files
 
-    # Runtime helpers (scripts\fetch-bins.ps1 must have been run before building).
+    # Runtime helpers (windows\fetch-bins.ps1 must have been run before building).
     SetOutPath "$INSTDIR\bin"
     File "..\..\..\bin\sing-box.exe"
     File "..\..\..\bin\goodbyedpi.exe"
