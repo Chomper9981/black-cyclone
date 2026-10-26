@@ -193,7 +193,7 @@ func BuildKillSwitch(s settings.Settings) ([]byte, error) {
 }
 
 func tunInbound() map[string]any {
-	return map[string]any{
+	tun := map[string]any{
 		"type":           "tun",
 		"tag":            "tun-in",
 		"interface_name": "BlackCyclone",
@@ -203,6 +203,8 @@ func tunInbound() map[string]any {
 		"strict_route":   true,
 		"stack":          "mixed",
 	}
+	platformTun(tun)
+	return tun
 }
 
 func experimental(o Options) map[string]any {

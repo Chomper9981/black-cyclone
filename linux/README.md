@@ -57,6 +57,7 @@ Lưu ý bảo mật: mọi user chạy được `/opt/blackcyclone/BlackCyclone`
 | Khởi động cùng máy | Task Scheduler | `~/.config/autostart/blackcyclone.desktop` |
 | Dữ liệu | `%APPDATA%\BlackCyclone` | `~/.config/BlackCyclone` |
 | Ứng dụng đi thẳng | `steam.exe` | tên tiến trình, ví dụ `steam` |
+| Bắt traffic | TUN, stack `mixed` | TUN stack `gvisor` + `auto_redirect` (nftables): TCP và DNS được chuyển thẳng vào sing-box. Không bị firewall (UFW) chặn, và bắt được cả DNS của systemd-resolved. Kernel cần nftables (mọi distro hiện nay). |
 
 Ánh xạ kiểu chống DPI: `9` → chia gói TCP, `9q` → chia gói TCP + chặn QUIC, `5` → chia bản ghi TLS (nhẹ). Bản Windows giữ nguyên GoodbyeDPI. Settings dùng chung tên preset nên copy cấu hình qua lại vẫn được.
 

@@ -68,6 +68,16 @@ func prepare(cmd *exec.Cmd) {
 		attr.AmbientCaps = heldCaps()
 	}
 	cmd.SysProcAttr = attr
+	cmd.Env = withoutPath(os.Environ())
+}
+
+// withoutPath drops PATH from env. sing-box looks up resolvectl there to point
+// systemd-resolved at the TUN; without root, resolved wants a polkit password
+// for that, so the user gets a prompt on connect and sing-box blocks ~10s on
+// disconnect, past GracefulTimeout, and is killed with its routes still set.
+// The DNS hijack does not need it: auto_redirect catches resolved's queries.
+func withoutPath(env []string) []string {
+	return slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, "PATH=") })
 }
 
 func afterStart(string, *exec.Cmd, func(string)) error { return nil }
