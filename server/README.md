@@ -89,6 +89,25 @@ Nên tạo **một tên cho mỗi người / thiết bị**. Khi lộ link hay m
 - **Chậm vào giờ cao điểm:** thường do đường truyền quốc tế của nhà mạng hoặc gói VPS giá rẻ quá tải. Thử VPS ở vị trí khác.
 - Xem log chi tiết: `bcserver logs`.
 
+## Kiểm thử bằng VPS giả (Docker)
+
+`server/test/run.ps1` dựng một "VPS trống" trong Docker: Ubuntu 24.04 chạy systemd, có SSH, không có sẵn curl, bật ufw. Script deploy lên đó bằng `deploy.ps1` y như với VPS thật, rồi kết nối thử bằng link sinh ra. Link được đọc bằng chính bộ đọc link của app và đi qua sing-box trong `bin\`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File server\test\run.ps1         # thêm -Keep để giữ container lại xem
+```
+
+Cần Docker Desktop, Go, OpenSSH client và `bin\sing-box.exe`. Các bước kiểm tra:
+- cài lần đầu bằng user thường + sudo, tự cài curl;
+- service chạy bằng user riêng, quyền file đúng, ufw đã mở cổng;
+- kết nối được bằng link;
+- deploy lại thì link không đổi;
+- `add`/`remove` người dùng: link đã xoá bị chặn ngay;
+- khởi động lại VPS thì service tự chạy;
+- `uninstall` gỡ sạch.
+
+Kernel của Docker Desktop không có BBR, nên trong test sẽ thấy cảnh báo về BBR; trên VPS thật thì không.
+
 ## Bảo mật
 
 - Link chứa đủ thông tin để dùng server: coi nó như mật khẩu, đừng đăng công khai.
