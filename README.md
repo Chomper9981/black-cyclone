@@ -82,3 +82,4 @@ $env:RCV_LIVE=1; go test ./internal/warp     # gọi API WARP thật + quét end
 
 Mã nguồn của Black Cyclone phát hành theo giấy phép [MIT](LICENSE), © 2026 Red Cyclone.
 sing-box (tải về bằng script `fetch-bins`, kèm trong bộ cài) là phần mềm của SagerNet, theo giấy phép GPL-3.0-or-later.
+Danh sách đầy đủ phần mềm bên thứ ba, nguồn gốc và giấy phép: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (thư mục [`licenses/`](licenses)).
