@@ -4,6 +4,7 @@
 
 - Bản Linux: xem [`linux/README.md`](linux/README.md) (build, cài, cấp quyền, khác biệt với bản Windows).
 - Bản Android: xem [`mobile/README.md`](mobile/README.md).
+- Tự dựng server riêng trên một VPS trống (một lệnh, không cần tên miền hay dịch vụ trả phí): xem [`server/README.md`](server/README.md).
 
 Phần dưới đây mô tả bản Windows; phần lớn tính năng giống hệt trên Linux.
 
@@ -63,6 +64,7 @@ frontend/                  UI (vanilla JS + Vite)
 windows/                   script tải binary phụ trợ cho Windows
 linux/                     script build / tải binary / cài đặt cho Linux
 mobile/                    bản Android (Kotlin + Go core qua gomobile)
+server/                    script dựng và quản lý server VLESS + Reality trên VPS cho chế độ Server riêng
 ```
 
 Code riêng cho từng hệ điều hành nằm trong file `*_windows.go` / `*_linux.go` cạnh phần dùng chung; Go tự chọn file theo hệ điều hành lúc build. Thư mục `windows/` và `linux/` chỉ chứa script build / cài đặt / đóng gói của từng nền tảng; `mobile/` là bản Android riêng.
