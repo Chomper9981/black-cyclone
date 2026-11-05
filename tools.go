@@ -72,7 +72,7 @@ func (a *App) ScanWarpEndpoints() ([]ScanResult, error) {
 		return nil, errors.New("chưa đăng ký WARP")
 	}
 	a.mu.Lock()
-	tunneled := a.state != StateOff && a.conf.Mode != settings.ModeBypass
+	tunneled := a.state != StateOff
 	a.mu.Unlock()
 	if tunneled {
 		return nil, errors.New("hãy ngắt kết nối trước khi quét (đang đi qua tunnel)")

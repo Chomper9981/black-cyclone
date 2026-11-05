@@ -68,11 +68,11 @@ func TestCheckWithSingBox(t *testing.T) {
 		settings.Server{ID: "b", Name: "vps2", Link: strings.Replace(realityLink, "vps.example.com", "vps2.example.com", 1)},
 		settings.Server{ID: "c", Name: "broken", Link: "vless://nope"})
 	multi.SelectedServer = settings.AutoServer
-	domainDoH := base
+	domainDoH := warp
 	domainDoH.DoHServer = "https://dns.google/dns-query"
 
 	opts := Options{BinDir: t.TempDir(), CacheFile: filepath.Join(t.TempDir(), "cache.db"), ClashAPI: "127.0.0.1:9090", ClashSecret: "x"}
-	cases := map[string]settings.Settings{"bypass": base, "warp": warp, "custom-one": one, "custom-multi": multi, "doh-domain": domainDoH}
+	cases := map[string]settings.Settings{"warp": warp, "custom-one": one, "custom-multi": multi, "doh-domain": domainDoH}
 	for name, s := range cases {
 		t.Run(name, func(t *testing.T) {
 			cfg, warnings, err := Build(s, opts)
@@ -92,20 +92,6 @@ func TestCheckWithSingBox(t *testing.T) {
 		}
 		check(t, bin, cfg)
 	})
-	for _, mode := range []string{"tcp", "record"} {
-		t.Run("bypass-fragment-"+mode, func(t *testing.T) {
-			o := opts
-			o.TLSFragment, o.BlockQUIC = mode, mode == "tcp"
-			cfg, _, err := Build(base, o)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !strings.Contains(string(cfg), `"route-options"`) {
-				t.Fatal("no route-options rule")
-			}
-			check(t, bin, cfg)
-		})
-	}
 }
 
 func TestSelector(t *testing.T) {
@@ -132,6 +118,12 @@ func TestSelector(t *testing.T) {
 		}
 	}
 	t.Fatal("no proxy selector")
+}
+
+func TestNoWarpAccount(t *testing.T) {
+	if _, _, err := Build(settings.Default(), Options{}); err == nil {
+		t.Fatal("expected error without a WARP registration")
+	}
 }
 
 func TestNoServers(t *testing.T) {

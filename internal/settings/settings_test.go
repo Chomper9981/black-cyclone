@@ -34,27 +34,18 @@ func TestMigrateCustomLink(t *testing.T) {
 	}
 }
 
-func TestDPICommand(t *testing.T) {
-	s := Default()
-	if got := s.DPICommand(); len(got) != 1 || got[0] != "-9" {
-		t.Fatalf("default preset: %v", got)
-	}
-	s.DPIPreset, s.DPIArgs = "custom", " -f 2  -e 2 "
-	if got := s.DPICommand(); len(got) != 4 {
-		t.Fatalf("custom args: %v", got)
-	}
-}
-
-func TestTLSFragment(t *testing.T) {
-	for preset, want := range map[string]struct {
-		mode string
-		quic bool
-	}{"5": {"record", false}, "9": {"tcp", false}, "9q": {"tcp", true}, "custom": {"tcp", false}} {
-		s := Default()
-		s.DPIPreset = preset
-		if mode, quic := s.TLSFragment(); mode != want.mode || quic != want.quic {
-			t.Errorf("%s: got %s/%v, want %s/%v", preset, mode, quic, want.mode, want.quic)
+func TestMigrateBypassToWarp(t *testing.T) {
+	for _, m := range []Mode{"bypass", ""} {
+		s := Settings{Mode: m}
+		s.migrate()
+		if s.Mode != ModeWarp {
+			t.Errorf("%q: mode %q, want warp", m, s.Mode)
 		}
+	}
+	s := Settings{Mode: ModeCustom}
+	s.migrate()
+	if s.Mode != ModeCustom {
+		t.Errorf("custom mode changed to %q", s.Mode)
 	}
 }
 

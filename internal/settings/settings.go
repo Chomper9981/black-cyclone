@@ -18,20 +18,11 @@ import (
 type Mode string
 
 const (
-	// ModeBypass: no remote server. DoH DNS through a TUN + GoodbyeDPI against SNI/DPI blocking.
-	ModeBypass Mode = "bypass"
 	// ModeWarp: all traffic through Cloudflare WARP (WireGuard). Hides your IP from websites.
 	ModeWarp Mode = "warp"
 	// ModeCustom: all traffic through your own server(s) given as share links / subscriptions.
 	ModeCustom Mode = "custom"
 )
-
-// GoodbyeDPI presets offered in the UI. DPIArgs is used when DPIPreset == "custom".
-var DPIPresets = map[string][]string{
-	"5":  {"-5"},       // -f 2 -e 2 --auto-ttl --reverse-frag --max-payload
-	"9":  {"-9"},       // -5 plus fake packets (wrong chksum/seq) and QUIC blocking
-	"9q": {"-9", "-q"}, // explicit: also block QUIC so browsers fall back to TCP
-}
 
 type Warp struct {
 	PrivateKey    string   `json:"private_key"`
@@ -63,7 +54,7 @@ type Subscription struct {
 	Updated string `json:"updated,omitempty"` // RFC3339 of last successful refresh
 }
 
-// Routing applies in the warp/custom modes (what bypasses the tunnel).
+// Routing decides what bypasses the tunnel.
 type Routing struct {
 	DirectVN        bool     `json:"direct_vn"`        // Vietnamese IPs / .vn domains go direct
 	DirectDomains   []string `json:"direct_domains"`   // domain suffixes that go direct
@@ -79,10 +70,6 @@ type Settings struct {
 	DoHServer string `json:"doh_server"`
 	BypassLAN bool   `json:"bypass_lan"`
 
-	UseDPI    bool   `json:"use_dpi"`
-	DPIPreset string `json:"dpi_preset"` // key of DPIPresets or "custom"
-	DPIArgs   string `json:"dpi_args"`   // space-separated GoodbyeDPI args for "custom"
-
 	Servers        []Server       `json:"servers"`
 	Subscriptions  []Subscription `json:"subscriptions"`
 	SelectedServer string         `json:"selected_server"` // Server.ID or AutoServer
@@ -93,7 +80,7 @@ type Settings struct {
 
 	Routing Routing `json:"routing"`
 
-	KillSwitch       bool `json:"kill_switch"`    // block traffic if the tunnel dies (warp/custom)
+	KillSwitch       bool `json:"kill_switch"`    // block traffic if the tunnel dies
 	AutoReconnect    bool `json:"auto_reconnect"` // restart the core if it dies
 	AutoConnect      bool `json:"auto_connect"`   // connect when the app starts
 	StartWithWindows bool `json:"start_with_windows"`
@@ -107,10 +94,8 @@ type Settings struct {
 
 func Default() Settings {
 	return Settings{
-		Mode:              ModeBypass,
+		Mode:              ModeWarp,
 		DoHServer:         "https://1.1.1.1/dns-query",
-		UseDPI:            true,
-		DPIPreset:         "9",
 		BypassLAN:         true,
 		SelectedServer:    AutoServer,
 		Routing:           Routing{DirectVN: true},
@@ -120,34 +105,6 @@ func Default() Settings {
 		Notifications:     true,
 		InterruptOnSwitch: true,
 	}
-}
-
-// DPICommand returns the GoodbyeDPI arguments for the configured preset.
-func (s Settings) DPICommand() []string {
-	if s.DPIPreset == "custom" {
-		if f := strings.Fields(s.DPIArgs); len(f) > 0 {
-			return f
-		}
-	}
-	if a, ok := DPIPresets[s.DPIPreset]; ok {
-		return a
-	}
-	return DPIPresets["9"]
-}
-
-// TLSFragment maps the DPI preset onto sing-box's own TLS fragmentation, used
-// where GoodbyeDPI does not exist (Linux). mode is "record" for "5" (split the
-// ClientHello into TLS records, lighter) and "tcp" otherwise (split it into TCP
-// segments); "9q" also blocks QUIC. Custom GoodbyeDPI arguments have no
-// equivalent and behave like "9".
-func (s Settings) TLSFragment() (mode string, blockQUIC bool) {
-	switch s.DPIPreset {
-	case "5":
-		return "record", false
-	case "9q":
-		return "tcp", true
-	}
-	return "tcp", false
 }
 
 // NewID returns a short random identifier for servers/subscriptions.
@@ -234,8 +191,9 @@ func (s *Settings) migrate() {
 	if s.SelectedServer == "" {
 		s.SelectedServer = AutoServer
 	}
-	if s.DPIPreset == "" {
-		s.DPIPreset = "9"
+	// The DoH + GoodbyeDPI "bypass" mode was removed (too slow); its users move to WARP.
+	if s.Mode != ModeWarp && s.Mode != ModeCustom {
+		s.Mode = ModeWarp
 	}
 }
 

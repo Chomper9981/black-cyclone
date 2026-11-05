@@ -99,9 +99,10 @@ Section
     # Runtime helpers (windows\fetch-bins.ps1 must have been run before building).
     SetOutPath "$INSTDIR\bin"
     File "..\..\..\bin\sing-box.exe"
-    File "..\..\..\bin\goodbyedpi.exe"
-    File "..\..\..\bin\WinDivert.dll"
-    File "..\..\..\bin\WinDivert64.sys"
+    # GoodbyeDPI was bundled by versions with the "Vượt chặn" mode; drop it on upgrade.
+    Delete "$INSTDIR\bin\goodbyedpi.exe"
+    Delete "$INSTDIR\bin\WinDivert.dll"
+    Delete "$INSTDIR\bin\WinDivert64.sys"
     File /nonfatal "..\..\..\bin\geoip-vn.srs"
     SetOutPath $INSTDIR
 

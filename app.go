@@ -66,7 +66,6 @@ type App struct {
 	mu       sync.Mutex
 	state    string
 	sb       *runner.Proc
-	dpi      *runner.Proc
 	blocking bool              // sb runs the kill-switch config
 	conf     settings.Settings // settings of the current connection
 	since    time.Time
@@ -290,7 +289,7 @@ func copyLive(dst *settings.Settings, src settings.Settings) {
 func (a *App) applyLiveLocked(s settings.Settings) {
 	prev := a.conf
 	copyLive(&a.conf, s)
-	protect := a.conf.KillSwitch && a.conf.Mode != settings.ModeBypass
+	protect := a.conf.KillSwitch
 
 	switch a.state {
 	case StateReconnecting:
@@ -419,7 +418,7 @@ func (a *App) Disconnect() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.session++ // cancels any reconnect loop
-	if a.state == StateOff && a.sb == nil && a.dpi == nil {
+	if a.state == StateOff && a.sb == nil {
 		return nil
 	}
 	a.stopLocked()
@@ -442,7 +441,7 @@ func (a *App) preflight() error {
 	return nil
 }
 
-// startLocked starts sing-box (+ GoodbyeDPI) for s. On failure everything is stopped.
+// startLocked starts sing-box for s. On failure everything is stopped.
 func (a *App) startLocked(s settings.Settings) error {
 	bin := runner.BinDir()
 	dir, err := settings.Dir()
@@ -460,11 +459,6 @@ func (a *App) startLocked(s settings.Settings) error {
 		ClashAPI:    addr,
 		ClashSecret: secret,
 	}
-	useDPI := s.Mode == settings.ModeBypass && s.UseDPI
-	if useDPI && !hasGoodbyeDPI {
-		opts.TLSFragment, opts.BlockQUIC = s.TLSFragment()
-		a.log(fmt.Sprintf("Chống DPI: phân mảnh TLS (%s), chặn QUIC: %v", opts.TLSFragment, opts.BlockQUIC))
-	}
 	cfg, warnings, err := singbox.Build(s, opts)
 	if err != nil {
 		return err
@@ -480,22 +474,6 @@ func (a *App) startLocked(s settings.Settings) error {
 	a.warnings = warnings
 	a.clash = clash.New(addr, secret)
 	a.server = ""
-
-	if useDPI && hasGoodbyeDPI {
-		args := s.DPICommand()
-		a.log(fmt.Sprintf("Khởi động GoodbyeDPI %v…", args))
-		gen := a.procGen
-		dpi, err := runner.Start("goodbyedpi", filepath.Join(bin, runner.Exe("goodbyedpi")), args, a.log, a.onUnexpectedExit("goodbyedpi", gen))
-		if err != nil {
-			a.stopLocked()
-			return err
-		}
-		a.dpi = dpi
-		if exited, err := dpi.Wait(1500 * time.Millisecond); exited {
-			a.stopLocked()
-			return errors.New("GoodbyeDPI dừng ngay khi khởi động (xem log): " + errString(err))
-		}
-	}
 	return nil
 }
 
@@ -544,11 +522,10 @@ func (a *App) runSingBox(cfg []byte, label string) error {
 
 func (a *App) stopLocked() {
 	a.procGen++
-	sb, dpi := a.sb, a.dpi
-	a.sb, a.dpi = nil, nil
+	sb := a.sb
+	a.sb = nil
 	a.clash = nil
 	a.blocking = false
-	dpi.Stop()
 	sb.Stop()
 }
 
@@ -572,7 +549,7 @@ func (a *App) onUnexpectedExit(name string, gen int) func(error) {
 
 // handleFailureLocked decides what to do after the tunnel died.
 func (a *App) handleFailureLocked() {
-	protect := a.conf.KillSwitch && a.conf.Mode != settings.ModeBypass
+	protect := a.conf.KillSwitch
 	if protect {
 		if err := a.startKillSwitchLocked(); err != nil {
 			a.log("Không bật được kill switch: " + err.Error())
@@ -620,7 +597,7 @@ func (a *App) reconnectLoop(session int) {
 		}
 		a.lastErr = err.Error()
 		a.log("Kết nối lại thất bại: " + err.Error())
-		if conf.KillSwitch && conf.Mode != settings.ModeBypass {
+		if conf.KillSwitch {
 			a.conf = conf
 			_ = a.startKillSwitchLocked()
 		}
@@ -760,12 +737,10 @@ func (a *App) log(line string) {
 
 func modeName(m settings.Mode) string {
 	switch m {
-	case settings.ModeWarp:
-		return "WARP"
 	case settings.ModeCustom:
 		return "server riêng"
 	}
-	return "vượt chặn"
+	return "WARP"
 }
 
 func randomHex(n int) string {

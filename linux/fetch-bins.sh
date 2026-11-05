@@ -2,7 +2,7 @@
 # Downloads the runtime binary (sing-box) for Linux into <project>/bin.
 # Same pinned version as windows/fetch-bins.ps1, verified by SHA-256: sing-box
 # changes its config format between releases, so bump both together with
-# internal/singbox and its tests. No GoodbyeDPI on Linux (see linux/README.md).
+# internal/singbox and its tests.
 # Usage: linux/fetch-bins.sh
 set -eu
 

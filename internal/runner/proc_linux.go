@@ -17,8 +17,7 @@ import (
 
 const exeSuffix = ""
 
-// Required lists the files that must exist in the bin directory. There is no
-// GoodbyeDPI on Linux: bypass mode uses sing-box's own TLS fragmentation.
+// Required lists the files that must exist in the bin directory.
 var Required = []string{"sing-box"}
 
 // netCaps are what sing-box needs without root: CAP_NET_ADMIN for the TUN

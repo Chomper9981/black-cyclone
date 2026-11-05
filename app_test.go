@@ -94,14 +94,3 @@ func TestApplyLiveAutoReconnectOnWhileBlocked(t *testing.T) {
 		t.Fatalf("state=%s, want reconnecting", a.state)
 	}
 }
-
-func TestApplyLiveKillSwitchIgnoredInBypass(t *testing.T) {
-	conf := settings.Default() // bypass mode never blocks
-	a := newTestApp(StateReconnecting, false, conf)
-	s := conf
-	s.KillSwitch = true
-	a.applyLiveLocked(s)
-	if a.blocking || a.state != StateReconnecting {
-		t.Fatalf("state=%s blocking=%v", a.state, a.blocking)
-	}
-}

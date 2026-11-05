@@ -1,4 +1,4 @@
-// Package runner starts and stops the helper processes (sing-box, GoodbyeDPI).
+// Package runner starts and stops the helper process (sing-box).
 package runner
 
 import (
