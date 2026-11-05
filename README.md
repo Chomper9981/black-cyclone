@@ -2,6 +2,8 @@
 
 Ứng dụng giúp vượt chặn của nhà mạng, cho Windows và Linux. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, traffic đi qua Cloudflare WARP hoặc server riêng.
 
+Tác giả: **Red Cyclone** (GitHub: Chomper9981). Mã nguồn phát hành theo giấy phép [MIT](LICENSE).
+
 - Bản Linux: xem [`linux/README.md`](linux/README.md) (build, cài, cấp quyền, khác biệt với bản Windows).
 - Bản Android: xem [`mobile/README.md`](mobile/README.md).
 - Tự dựng server riêng trên một VPS trống (một lệnh, không cần tên miền hay dịch vụ trả phí): xem [`server/README.md`](server/README.md).
@@ -75,3 +77,8 @@ Code riêng cho từng hệ điều hành nằm trong file `*_windows.go` / `*_l
 go test ./internal/...                       # gồm kiểm tra config với sing-box check thật
 $env:RCV_LIVE=1; go test ./internal/warp     # gọi API WARP thật + quét endpoint
 ```
+
+## Giấy phép
+
+Mã nguồn của Black Cyclone phát hành theo giấy phép [MIT](LICENSE), © 2026 Red Cyclone.
+sing-box (tải về bằng script `fetch-bins`, kèm trong bộ cài) là phần mềm của SagerNet, theo giấy phép GPL-3.0-or-later.
