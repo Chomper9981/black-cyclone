@@ -1,3 +1,5 @@
+//go:build linux && !android
+
 package singbox
 
 // platformTun adjusts the TUN inbound for Linux desktops:

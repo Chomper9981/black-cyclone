@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BlackCyclone</string>
-    <string name="tile_label">WARP</string>
+    <string name="tile_label">BlackCyclone</string>
     <string name="channel_vpn">Trạng thái VPN</string>
 </resources>

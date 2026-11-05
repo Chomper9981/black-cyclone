@@ -12,7 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-/** Quick Settings tile that toggles WARP. */
+/** Quick Settings tile that toggles the VPN (in the mode chosen in the app). */
 class WarpTileService : TileService() {
     private var scope: CoroutineScope? = null
 
@@ -31,8 +31,8 @@ class WarpTileService : TileService() {
         val st = TunnelState.state.value
         when {
             st.active -> WarpVpnService.stop(this)
-            // No VPN permission or no account yet: open the app, which handles both.
-            VpnService.prepare(this) != null || Prefs.account == null -> openApp()
+            // No VPN permission, or nothing to connect to yet: open the app, which handles both.
+            VpnService.prepare(this) != null || Prefs.connectProblem() != null -> openApp()
             else -> WarpVpnService.start(this)
         }
     }

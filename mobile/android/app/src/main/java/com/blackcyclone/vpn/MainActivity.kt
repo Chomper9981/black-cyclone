@@ -49,8 +49,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun connect() {
-        if (vm.account.value == null) {
-            vm.toast("Hãy đăng ký WARP trước")
+        Prefs.connectProblem()?.let {
+            vm.toast(it)
             return
         }
         val prepare = VpnService.prepare(this)

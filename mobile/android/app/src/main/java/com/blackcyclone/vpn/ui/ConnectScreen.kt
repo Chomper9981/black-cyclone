@@ -8,9 +8,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.blackcyclone.vpn.Account
 import com.blackcyclone.vpn.MainViewModel
+import com.blackcyclone.vpn.Mode
+import com.blackcyclone.vpn.ServerEntry
 import com.blackcyclone.vpn.ScanState
 import com.blackcyclone.vpn.Status
 import com.blackcyclone.vpn.TunnelInfo
@@ -65,15 +73,133 @@ fun ConnectScreen(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> 
     val account by vm.account.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val scan by vm.scan.collectAsStateWithLifecycle()
+    val mode by vm.mode.collectAsStateWithLifecycle()
+    val servers by vm.servers.collectAsStateWithLifecycle()
+    val selected by vm.selectedServer.collectAsStateWithLifecycle()
+    val canConnect = if (mode == Mode.WARP) account != null else servers.isNotEmpty()
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StatusPanel(st, enabled = account != null, onConnect, onDisconnect)
+        StatusPanel(st, enabled = canConnect, onConnect, onDisconnect)
         if (st.active && st.lockdown == false) LockdownWarning()
-        AccountCard(vm, account, busy)
-        if (account != null) EndpointCard(vm, account!!, scan)
+        ModeSelector(mode, vm::setMode)
+        if (mode == Mode.WARP) {
+            AccountCard(vm, account, busy)
+            if (account != null) EndpointCard(vm, account!!, scan)
+        } else {
+            ServersCard(vm, servers, selected)
+        }
+    }
+}
+
+@Composable
+private fun ModeSelector(mode: Mode, onChange: (Mode) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        Mode.entries.forEachIndexed { i, m ->
+            SegmentedButton(
+                selected = mode == m,
+                onClick = { onChange(m) },
+                shape = SegmentedButtonDefaults.itemShape(i, Mode.entries.size),
+            ) { Text(m.label) }
+        }
+    }
+}
+
+@Composable
+private fun ServersCard(vm: MainViewModel, servers: List<ServerEntry>, selected: String) {
+    val ctx = LocalContext.current
+    var adding by remember { mutableStateOf(false) }
+    var menuFor by remember { mutableStateOf<ServerEntry?>(null) }
+    var renaming by remember { mutableStateOf<ServerEntry?>(null) }
+
+    SectionCard("Server riêng") {
+        if (servers.isEmpty()) {
+            Hint(
+                "Chưa có server. Dán link vless:// (hoặc vmess, trojan, ss, hysteria2, tuic) lấy từ VPS của bạn: " +
+                    "trên VPS cài bằng thư mục server/ của Black Cyclone, lệnh bcserver link in ra link này.",
+                Modifier.padding(vertical = 6.dp),
+            )
+        } else {
+            Hint("Chạm để chọn, giữ để đổi tên / xoá.", Modifier.padding(top = 4.dp, bottom = 4.dp))
+            if (servers.size > 1) {
+                ServerRow("Tự động", "chọn server có độ trễ thấp nhất", selected == ServerEntry.AUTO, onClick = { vm.selectServer(ServerEntry.AUTO) })
+            }
+            servers.forEach { srv ->
+                ServerRow(
+                    srv.name, "${srv.scheme} · ${srv.address}", selected == srv.id || servers.size == 1,
+                    onClick = { vm.selectServer(srv.id) },
+                    onLongClick = { menuFor = srv },
+                )
+            }
+        }
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { adding = true }) { Text("Thêm server") }
+        }
+    }
+
+    if (adding) {
+        TextInputDialog(
+            title = "Thêm server",
+            label = "Link",
+            initial = ctx.pasteText().takeIf { it.contains("://") }.orEmpty(),
+            hint = "Dán một hoặc nhiều link. Link chứa khoá truy cập server: đừng chia sẻ công khai.",
+            singleLine = false,
+            onDismiss = { adding = false },
+            onOk = { vm.addServers(it) },
+        )
+    }
+    menuFor?.let { srv ->
+        AlertDialog(
+            onDismissRequest = { menuFor = null },
+            title = { Text(srv.name) },
+            text = { Text(srv.address, fontFamily = FontFamily.Monospace) },
+            confirmButton = {
+                TextButton(onClick = { menuFor = null; renaming = srv }) { Text("Đổi tên") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        ctx.copyText("Server link", srv.link)
+                        vm.toast("Đã sao chép link")
+                        menuFor = null
+                    }) { Text("Sao chép link") }
+                    TextButton(onClick = { menuFor = null; vm.removeServer(srv.id) }) {
+                        Text("Xoá", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+        )
+    }
+    renaming?.let { srv ->
+        TextInputDialog(
+            title = "Đổi tên",
+            label = "Tên",
+            initial = srv.name,
+            onDismiss = { renaming = null },
+            onOk = { vm.renameServer(srv.id, it); it.isNotBlank() },
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ServerRow(title: String, sub: String, selected: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) BrandRed.copy(alpha = 0.18f) else Color.Transparent)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.padding(start = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Hint(sub)
+        }
     }
 }
 
@@ -125,9 +251,9 @@ private fun StatusPanel(st: TunnelInfo, enabled: Boolean, onConnect: () -> Unit,
                 Stat("↓ Tải xuống", formatRate(st.rxRate), formatBytes(st.rx))
                 Stat("↑ Tải lên", formatRate(st.txRate), formatBytes(st.tx))
                 Stat(
-                    "Bắt tay",
-                    if (st.handshakeAgoMs < 0) "—" else "${st.handshakeAgoMs / 1000}s",
-                    if (st.handshakeAgoMs < 0) "chưa có" else "trước",
+                    "Độ trễ",
+                    if (st.okAgoMs < 0) "—" else "${st.delayMs} ms",
+                    if (st.okAgoMs < 0) "chưa thông" else "đo ${st.okAgoMs / 1000}s trước",
                 )
             }
         }
@@ -196,7 +322,7 @@ private fun AccountCard(vm: MainViewModel, account: Account?, busy: String?) {
             title = "Nhập tài khoản",
             label = "JSON tài khoản",
             initial = ctx.pasteText().takeIf { it.trimStart().startsWith("{") }.orEmpty(),
-            hint = "Dán JSON đã xuất từ BlackCyclone (Android) hoặc RedCyclone VPN (Windows). Tài khoản hiện tại sẽ bị thay thế.",
+            hint = "Dán JSON đã xuất từ BlackCyclone (Android) hoặc Black Cyclone bản máy tính. Tài khoản hiện tại sẽ bị thay thế.",
             singleLine = false,
             onDismiss = { dialog = null },
             onOk = { vm.import(it) },

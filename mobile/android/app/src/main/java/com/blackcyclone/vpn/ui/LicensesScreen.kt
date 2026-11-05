@@ -29,9 +29,10 @@ import kotlinx.coroutines.withContext
 
 /** License texts bundled in assets/licenses/ by the copyLicenses Gradle task. */
 private val documents = listOf(
-    "LICENSE" to "BlackCyclone (MIT)",
-    "THIRD_PARTY_NOTICES.md" to "Phần mềm bên thứ ba",
-    "go-android.txt" to "Thư viện Go (wireguard-go, Go…)",
+    "GPL-3.0.txt" to "GNU GPL 3.0 (app Android, sing-box)",
+    "LICENSE" to "Mã nguồn Black Cyclone (MIT)",
+    "THIRD_PARTY_NOTICES.md" to "Phần mềm bên thứ ba, nguồn mã",
+    "go-android.txt" to "Thư viện Go (sing-box và các thư viện đi kèm)",
     "Apache-2.0.txt" to "Apache License 2.0 (AndroidX, Kotlin)",
 )
 
@@ -49,8 +50,9 @@ fun LicensesScreen(onBack: () -> Unit) {
         OutlinedButton(onClick = onBack) { Text("Quay lại") }
         SectionCard("Giấy phép") {
             Hint(
-                "BlackCyclone là phần mềm mã nguồn mở theo giấy phép MIT, © 2026 Red Cyclone. " +
-                    "App dùng các phần mềm bên thứ ba dưới đây, mỗi phần theo giấy phép riêng.",
+                "App Android BlackCyclone chứa sing-box nên được phát hành theo giấy phép GNU GPL 3.0. " +
+                    "Mã nguồn của Black Cyclone (© 2026 Red Cyclone) theo giấy phép MIT, " +
+                    "tại github.com/Chomper9981/black-cyclone. Phần mềm bên thứ ba giữ giấy phép riêng.",
                 Modifier.padding(top = 4.dp, bottom = 4.dp),
             )
             documents.forEach { doc ->

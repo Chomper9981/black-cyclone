@@ -52,6 +52,7 @@ fun SettingsScreen() {
 
     val ctx = LocalContext.current
     var bypassLan by remember { mutableStateOf(Prefs.bypassLan) }
+    var directVn by remember { mutableStateOf(Prefs.directVn) }
     var killSwitch by remember { mutableStateOf(Prefs.killSwitch) }
     var autoConnect by remember { mutableStateOf(Prefs.autoConnect) }
     var autoPick by remember { mutableStateOf(Prefs.autoPickFastest) }
@@ -63,23 +64,26 @@ fun SettingsScreen() {
     ) {
         Hint("Thay đổi có hiệu lực từ lần kết nối sau.")
         SectionCard("Kết nối") {
-            SwitchRow("Bỏ qua mạng LAN", "Mạng nội bộ (192.168.x.x, 10.x.x.x…) đi thẳng, không qua WARP: vẫn dùng được máy in, NAS, Chromecast.", bypassLan) {
+            SwitchRow("Bỏ qua mạng LAN", "Mạng nội bộ (192.168.x.x, 10.x.x.x…) đi thẳng, không qua VPN: vẫn dùng được máy in, NAS, Chromecast.", bypassLan) {
                 bypassLan = it; Prefs.bypassLan = it
             }
-            SwitchRow("Tự kết nối khi mở app", "Mở app là tự bật WARP.", autoConnect) {
+            SwitchRow("Việt Nam đi thẳng", "Trang .vn và IP Việt Nam không qua VPN: ngân hàng, báo, game trong nước nhanh hơn và không bị chặn vì IP nước ngoài.", directVn) {
+                directVn = it; Prefs.directVn = it
+            }
+            SwitchRow("Tự kết nối khi mở app", "Mở app là tự kết nối.", autoConnect) {
                 autoConnect = it; Prefs.autoConnect = it
             }
-            SwitchRow("Tự chọn endpoint nhanh nhất", "Sau khi quét, tự dùng endpoint có ping thấp nhất.", autoPick) {
+            SwitchRow("Tự chọn endpoint nhanh nhất", "WARP: sau khi quét, tự dùng endpoint có ping thấp nhất.", autoPick) {
                 autoPick = it; Prefs.autoPickFastest = it
             }
         }
 
         SectionCard("Chia tuyến theo ứng dụng") {
-            Hint("Chọn ứng dụng nào đi qua WARP. Ví dụ để app ngân hàng, game đi thẳng.", Modifier.padding(top = 4.dp, bottom = 4.dp))
+            Hint("Chọn ứng dụng nào đi qua VPN. Ví dụ để app ngân hàng, game đi thẳng.", Modifier.padding(top = 4.dp, bottom = 4.dp))
             listOf(
-                SplitMode.OFF to "Tắt: mọi ứng dụng qua WARP",
+                SplitMode.OFF to "Tắt: mọi ứng dụng qua VPN",
                 SplitMode.EXCLUDE to "Ứng dụng đã chọn đi thẳng",
-                SplitMode.INCLUDE to "Chỉ ứng dụng đã chọn qua WARP",
+                SplitMode.INCLUDE to "Chỉ ứng dụng đã chọn qua VPN",
             ).forEach { (mode, label) ->
                 Row(
                     Modifier.fillMaxWidth().selectable(splitMode == mode) { splitMode = mode; Prefs.splitMode = mode },
@@ -96,8 +100,8 @@ fun SettingsScreen() {
 
         SectionCard("Kill switch") {
             SwitchRow(
-                "Chặn mạng khi WARP rớt",
-                "Trong lúc kết nối lại hoặc khi lỗi, chặn mọi kết nối thay vì để đi thẳng (lộ IP thật), đến khi WARP nối lại được hoặc bạn bấm Ngắt.",
+                "Chặn mạng khi VPN rớt",
+                "Trong lúc kết nối lại hoặc khi lỗi, chặn mọi kết nối thay vì để đi thẳng (lộ IP thật), đến khi nối lại được hoặc bạn bấm Ngắt.",
                 killSwitch,
             ) { killSwitch = it; Prefs.killSwitch = it }
             Hint(
@@ -110,11 +114,11 @@ fun SettingsScreen() {
         }
 
         SectionCard("Ô cài đặt nhanh") {
-            Hint("Kéo thanh thông báo xuống, chạm bút chỉnh sửa và thêm ô \"WARP\" để bật/tắt nhanh.", Modifier.padding(top = 4.dp))
+            Hint("Kéo thanh thông báo xuống, chạm bút chỉnh sửa và thêm ô \"BlackCyclone\" để bật/tắt nhanh.", Modifier.padding(top = 4.dp))
         }
 
         SectionCard("Giới thiệu") {
-            Hint("BlackCyclone ${BuildConfig.VERSION_NAME} · © 2026 Red Cyclone · MIT", Modifier.padding(top = 4.dp, bottom = 8.dp))
+            Hint("BlackCyclone ${BuildConfig.VERSION_NAME} · © 2026 Red Cyclone · GPL-3.0", Modifier.padding(top = 4.dp, bottom = 8.dp))
             OutlinedButton(onClick = { showLicenses = true }) { Text("Giấy phép mã nguồn mở") }
         }
     }

@@ -10,40 +10,49 @@ plugins {
 val keystoreFile = rootProject.file("keystore.properties")
 
 // Copies the repo's license texts into the APK (assets/licenses/), shown under
-// Cài đặt → Giấy phép. Regenerate licenses/go-android.txt with tools/licenses
-// (see THIRD_PARTY_NOTICES.md) after changing the Go core's dependencies.
-abstract class CopyLicenses : DefaultTask() {
+// Cài đặt → Giới thiệu → Giấy phép, plus bin/geoip-vn.srs (from fetch-bins) when
+// present; without it sing-box downloads the rule set on first connect.
+// Regenerate licenses/go-android.txt with tools/licenses (see
+// THIRD_PARTY_NOTICES.md) after changing the Go core's dependencies.
+abstract class CopyAssets : DefaultTask() {
     @get:InputFiles
-    abstract val sources: ConfigurableFileCollection
+    abstract val licenses: ConfigurableFileCollection
+
+    @get:InputFiles
+    @get:Optional
+    abstract val optional: ConfigurableFileCollection
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
     @TaskAction
     fun copy() {
-        val out = outputDir.get().asFile.resolve("licenses")
-        out.deleteRecursively()
-        out.mkdirs()
-        sources.forEach { f ->
+        val root = outputDir.get().asFile
+        root.deleteRecursively()
+        val out = root.resolve("licenses").apply { mkdirs() }
+        licenses.forEach { f ->
             check(f.isFile) { "missing license file: $f" }
             f.copyTo(out.resolve(f.name), overwrite = true)
         }
+        optional.filter { it.isFile }.forEach { it.copyTo(root.resolve(it.name), overwrite = true) }
     }
 }
 
 val repoRoot = rootProject.file("../..")
-val copyLicenses = tasks.register<CopyLicenses>("copyLicenses") {
-    sources.from(
+val copyAssets = tasks.register<CopyAssets>("copyAssets") {
+    licenses.from(
         repoRoot.resolve("LICENSE"),
         repoRoot.resolve("THIRD_PARTY_NOTICES.md"),
+        repoRoot.resolve("licenses/GPL-3.0.txt"),
         repoRoot.resolve("licenses/go-android.txt"),
         repoRoot.resolve("licenses/Apache-2.0.txt"),
     )
+    optional.from(repoRoot.resolve("bin/geoip-vn.srs"))
 }
 
 androidComponents {
     onVariants { variant ->
-        variant.sources.assets?.addGeneratedSourceDirectory(copyLicenses, CopyLicenses::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(copyAssets, CopyAssets::outputDir)
     }
 }
 
@@ -59,9 +68,6 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "1.0.1"
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
     }
 
     signingConfigs {
@@ -93,8 +99,21 @@ android {
         buildConfig = true
     }
 
+    // One APK per CPU type plus a universal one: the Go core (sing-box) is ~45 MB per
+    // ABI, so most phones only need app-arm64-v8a-*.apk.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     packaging {
-        jniLibs { useLegacyPackaging = false }
+        // Compress the native core in the APK (about a third of its size): smaller
+        // downloads, at the cost of Android extracting it once at install.
+        jniLibs { useLegacyPackaging = true }
     }
 }
 
