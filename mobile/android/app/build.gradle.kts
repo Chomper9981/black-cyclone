@@ -9,6 +9,44 @@ plugins {
 // keyPassword); without it release builds are signed with the debug key.
 val keystoreFile = rootProject.file("keystore.properties")
 
+// Copies the repo's license texts into the APK (assets/licenses/), shown under
+// Cài đặt → Giấy phép. Regenerate licenses/go-android.txt with tools/licenses
+// (see THIRD_PARTY_NOTICES.md) after changing the Go core's dependencies.
+abstract class CopyLicenses : DefaultTask() {
+    @get:InputFiles
+    abstract val sources: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile.resolve("licenses")
+        out.deleteRecursively()
+        out.mkdirs()
+        sources.forEach { f ->
+            check(f.isFile) { "missing license file: $f" }
+            f.copyTo(out.resolve(f.name), overwrite = true)
+        }
+    }
+}
+
+val repoRoot = rootProject.file("../..")
+val copyLicenses = tasks.register<CopyLicenses>("copyLicenses") {
+    sources.from(
+        repoRoot.resolve("LICENSE"),
+        repoRoot.resolve("THIRD_PARTY_NOTICES.md"),
+        repoRoot.resolve("licenses/go-android.txt"),
+        repoRoot.resolve("licenses/Apache-2.0.txt"),
+    )
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLicenses, CopyLicenses::outputDir)
+    }
+}
+
 android {
     namespace = "com.blackcyclone.vpn"
     compileSdk {

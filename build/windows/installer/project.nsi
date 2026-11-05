@@ -106,6 +106,15 @@ Section
     File /nonfatal "..\..\..\bin\geoip-vn.srs"
     SetOutPath $INSTDIR
 
+    # License texts: required for redistributing sing-box (GPL-3.0) and the
+    # compiled-in Go libraries (see THIRD_PARTY_NOTICES.md).
+    File /oname=LICENSE.txt "..\..\..\LICENSE"
+    File /oname=THIRD_PARTY_NOTICES.md "..\..\..\THIRD_PARTY_NOTICES.md"
+    SetOutPath "$INSTDIR\licenses"
+    File "..\..\..\licenses\GPL-3.0.txt"
+    File "..\..\..\licenses\go-desktop.txt"
+    SetOutPath $INSTDIR
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

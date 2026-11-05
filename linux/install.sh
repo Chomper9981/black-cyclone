@@ -2,6 +2,7 @@
 # Installs Black Cyclone system-wide:
 #   /opt/blackcyclone/BlackCyclone   the app, with CAP_NET_ADMIN + CAP_NET_RAW
 #   /opt/blackcyclone/bin/           sing-box and geoip-vn.srs
+#   /opt/blackcyclone/licenses/      license texts (with LICENSE, THIRD_PARTY_NOTICES.md)
 #   /usr/local/bin/blackcyclone      launcher symlink
 #   menu entry + icon under /usr/share
 # The app hands its two capabilities to the sing-box it starts, so everything
@@ -60,6 +61,11 @@ if [ -f "$ROOT/bin/geoip-vn.srs" ]; then
     install -m 0644 -o root -g root "$ROOT/bin/geoip-vn.srs" "$PREFIX/bin/geoip-vn.srs"
 fi
 setcap cap_net_admin,cap_net_raw+ep "$PREFIX/BlackCyclone"
+# License texts that must travel with sing-box (GPL-3.0) and the Go libraries.
+install -m 0644 -o root -g root "$ROOT/LICENSE" "$PREFIX/LICENSE"
+install -m 0644 -o root -g root "$ROOT/THIRD_PARTY_NOTICES.md" "$PREFIX/THIRD_PARTY_NOTICES.md"
+install -d -m 0755 -o root -g root "$PREFIX/licenses"
+install -m 0644 -o root -g root "$ROOT/licenses/GPL-3.0.txt" "$ROOT/licenses/go-desktop.txt" "$PREFIX/licenses/"
 
 install -D -m 0644 "$ROOT/linux/blackcyclone.png" "$ICON"
 install -D -m 0644 "$ROOT/linux/blackcyclone.desktop" "$DESKTOP"
