@@ -109,7 +109,9 @@ complete license texts are in `licenses/go-android.txt`.
 | AndroidX (core, activity, lifecycle) and Jetpack Compose | Apache-2.0 |
 | Kotlin standard library | Apache-2.0 |
 
-The Apache License 2.0 text is in `licenses/Apache-2.0.txt`.
+The Apache License 2.0 text is in `licenses/Apache-2.0.txt`. The APK carries
+these files (with `LICENSE` and this notice) under `assets/licenses/`; the app
+shows them in Cài đặt → Giới thiệu → Giấy phép mã nguồn mở.
 
 ## Updating this file
 

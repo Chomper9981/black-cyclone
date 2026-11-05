@@ -33,6 +33,11 @@ import com.blackcyclone.vpn.SplitMode
 fun SettingsScreen() {
     var pickingApps by remember { mutableStateOf(false) }
     var splitApps by remember { mutableStateOf(Prefs.splitApps) }
+    var showLicenses by remember { mutableStateOf(false) }
+    if (showLicenses) {
+        LicensesScreen(onBack = { showLicenses = false })
+        return
+    }
     if (pickingApps) {
         AppPicker(
             initial = splitApps,
@@ -108,7 +113,10 @@ fun SettingsScreen() {
             Hint("Kéo thanh thông báo xuống, chạm bút chỉnh sửa và thêm ô \"WARP\" để bật/tắt nhanh.", Modifier.padding(top = 4.dp))
         }
 
-        Hint("BlackCyclone ${BuildConfig.VERSION_NAME}", Modifier.padding(top = 4.dp))
+        SectionCard("Giới thiệu") {
+            Hint("BlackCyclone ${BuildConfig.VERSION_NAME} · © 2026 Red Cyclone · MIT", Modifier.padding(top = 4.dp, bottom = 8.dp))
+            OutlinedButton(onClick = { showLicenses = true }) { Text("Giấy phép mã nguồn mở") }
+        }
     }
 }
 
