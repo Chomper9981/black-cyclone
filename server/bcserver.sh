@@ -197,11 +197,11 @@ ensure_deps() {
     ((${#missing[@]} == 0)) && return
     info "Cài thêm: ${missing[*]}"
     if command -v apt-get >/dev/null; then
-        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl tar coreutils gawk
+        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl tar coreutils gawk >/dev/null
     elif command -v dnf >/dev/null; then
-        dnf install -y -q curl tar coreutils gawk
+        dnf install -y -q curl tar coreutils gawk >/dev/null
     elif command -v yum >/dev/null; then
-        yum install -y -q curl tar coreutils gawk
+        yum install -y -q curl tar coreutils gawk >/dev/null
     else
         die "thiếu ${missing[*]} và không biết cách cài trên hệ điều hành này"
     fi
@@ -339,8 +339,12 @@ start_service() {
     fi
 }
 
+# check_sni verifies the VPS can complete a TLS 1.3 handshake with the SNI site,
+# which is all Reality needs (the page body may stall for curl, e.g. on Akamai).
 check_sni() {
-    curl -fsS -o /dev/null --max-time 8 --tlsv1.3 "https://$SNI" 2>/dev/null ||
+    local t
+    t=$(curl -s -o /dev/null --max-time 8 --tlsv1.3 -w '%{time_appconnect}' "https://$SNI" 2>/dev/null || true)
+    awk -v t="$t" 'BEGIN { exit !(t + 0 > 0) }' ||
         warn "VPS không truy cập được https://$SNI bằng TLS 1.3; Reality cần trang đó hoạt động: chọn --sni khác nếu kết nối lỗi"
 }
 
