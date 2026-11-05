@@ -13,8 +13,8 @@
   "info": {
     "companyName": "Black Cyclone",
     "productName": "Black Cyclone",
-    "productVersion": "1.0.0",
-    "copyright": "Copyright © 2026 Chomper9981",
-    "comments": "VPN vượt chặn cho Windows và Linux (sing-box, Cloudflare WARP)"
+    "productVersion": "1.1.0",
+    "copyright": "Copyright (c) 2026 Red Cyclone",
+    "comments": "VPN vượt chặn cho Windows, Linux và Android (sing-box, Cloudflare WARP, server riêng)"
   }
 }
