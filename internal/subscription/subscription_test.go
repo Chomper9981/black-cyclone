@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 const (

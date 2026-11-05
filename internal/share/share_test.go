@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"redcyclone-vpn/internal/runner"
+	"black-cyclone/internal/runner"
 )
 
 const uuid = "11111111-2222-3333-4444-555555555555"
@@ -168,10 +168,7 @@ func TestCheckWithSingBox(t *testing.T) {
 		bin, _ = filepath.Abs(filepath.Join("..", "..", "bin", runner.Exe("sing-box")))
 	}
 	if _, err := os.Stat(bin); err != nil {
-		bin = `D:\Projects\redcyclone-vpn\bin\sing-box.exe`
-		if _, err := os.Stat(bin); err != nil {
-			t.Skip("sing-box.exe not found; set SING_BOX or run windows/fetch-bins.ps1")
-		}
+		t.Skip("sing-box not found; set SING_BOX or run the fetch-bins script")
 	}
 	for _, s := range samples() {
 		t.Run(s.name, func(t *testing.T) {

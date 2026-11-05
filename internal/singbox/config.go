@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 // Options carries runtime details that are not user settings.

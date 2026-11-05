@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"redcyclone-vpn/internal/nettest"
-	"redcyclone-vpn/internal/settings"
-	"redcyclone-vpn/internal/share"
-	"redcyclone-vpn/internal/singbox"
-	"redcyclone-vpn/internal/subscription"
-	"redcyclone-vpn/internal/warp"
+	"black-cyclone/internal/nettest"
+	"black-cyclone/internal/settings"
+	"black-cyclone/internal/share"
+	"black-cyclone/internal/singbox"
+	"black-cyclone/internal/subscription"
+	"black-cyclone/internal/warp"
 )
 
 /* ---------------- WARP ---------------- */

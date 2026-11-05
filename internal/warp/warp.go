@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 const (

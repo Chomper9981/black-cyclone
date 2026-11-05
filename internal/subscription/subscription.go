@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"redcyclone-vpn/internal/settings"
-	"redcyclone-vpn/internal/share"
+	"black-cyclone/internal/settings"
+	"black-cyclone/internal/share"
 )
 
 // UserAgent is sent so providers return share links rather than a Clash YAML or HTML page.

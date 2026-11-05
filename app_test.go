@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 func TestNetworkKeyIgnoresLiveSettings(t *testing.T) {

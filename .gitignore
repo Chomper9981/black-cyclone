@@ -5,5 +5,5 @@ frontend/node_modules
 bin/
 .claude/
 # `go build .` output
-/redcyclone-vpn
-/redcyclone-vpn.exe
+/black-cyclone
+/black-cyclone.exe

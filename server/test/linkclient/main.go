@@ -12,7 +12,7 @@ import (
 	"os"
 	"strconv"
 
-	"redcyclone-vpn/internal/share"
+	"black-cyclone/internal/share"
 )
 
 func main() {

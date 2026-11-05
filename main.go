@@ -10,7 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 //go:embed all:frontend/dist
@@ -46,6 +46,8 @@ func main() {
 		// A second launch just brings the running window forward; two
 		// instances would fight over the TUN interface.
 		SingleInstanceLock: &options.SingleInstanceLock{
+			// Kept from the "RedCyclone VPN" days on purpose: changing it would
+			// let an old and a new build run side by side during an upgrade.
 			UniqueId:               "redcyclone-vpn-9f3b2c",
 			OnSecondInstanceLaunch: func(options.SecondInstanceData) { app.ShowWindow() },
 		},

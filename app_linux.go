@@ -3,7 +3,7 @@ package main
 import (
 	"os/exec"
 
-	"redcyclone-vpn/internal/runner"
+	"black-cyclone/internal/runner"
 )
 
 const (

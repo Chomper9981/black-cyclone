@@ -1,4 +1,4 @@
-module redcyclone-vpn
+module black-cyclone
 
 go 1.26.0
 

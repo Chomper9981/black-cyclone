@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"redcyclone-vpn/internal/runner"
+	"black-cyclone/internal/runner"
 )
 
 // Runs a real sing-box (no TUN) with the Clash API and exercises the client.

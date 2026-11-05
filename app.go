@@ -16,12 +16,12 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"redcyclone-vpn/internal/autostart"
-	"redcyclone-vpn/internal/clash"
-	"redcyclone-vpn/internal/runner"
-	"redcyclone-vpn/internal/settings"
-	"redcyclone-vpn/internal/singbox"
-	"redcyclone-vpn/internal/tray"
+	"black-cyclone/internal/autostart"
+	"black-cyclone/internal/clash"
+	"black-cyclone/internal/runner"
+	"black-cyclone/internal/settings"
+	"black-cyclone/internal/singbox"
+	"black-cyclone/internal/tray"
 )
 
 // Connection states reported to the UI.
