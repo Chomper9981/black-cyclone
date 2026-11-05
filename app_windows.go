@@ -9,7 +9,6 @@ import (
 const (
 	errNotAdmin   = "cần chạy ứng dụng với quyền Administrator"
 	fetchBinsHint = `chạy windows\fetch-bins.ps1`
-	hasGoodbyeDPI = true
 )
 
 func isAdmin() bool {

@@ -54,13 +54,6 @@ const el = {
     saveMsg: $('save-msg'),
 
     modeInputs: [...document.querySelectorAll('input[name="mode"]')],
-    // bypass
-    bypassPanel: $('bypass-panel'),
-    dpi: $('dpi'),
-    dpiOpts: $('dpi-opts'),
-    dpiPreset: $('dpi-preset'),
-    dpiArgsRow: $('dpi-args-row'),
-    dpiArgs: $('dpi-args'),
     // warp
     warpPanel: $('warp-panel'),
     warpNone: $('warp-none'),
@@ -90,8 +83,6 @@ const el = {
     subAddBtn: $('sub-add-btn'),
     subMsg: $('sub-msg'),
     // routing
-    routingBlock: $('routing-block'),
-    routingNote: $('routing-note'),
     rDirectVN: $('r-direct-vn'),
     rDirectDomains: $('r-direct-domains'),
     rProxyDomains: $('r-proxy-domains'),
@@ -159,8 +150,7 @@ const isBusy = (op) => ops.has(op);
 
 function normalize(s) {
     s = {...(s || {})};
-    if (!s.mode) s.mode = 'bypass';
-    if (!s.dpi_preset) s.dpi_preset = '9';
+    if (s.mode !== 'warp' && s.mode !== 'custom') s.mode = 'warp';
     if (!s.selected_server) s.selected_server = 'auto';
     s.servers = s.servers || [];
     s.subscriptions = s.subscriptions || [];
@@ -235,10 +225,6 @@ function disarm(key) {
 
 function fillForm(s) {
     el.modeInputs.forEach((i) => { i.checked = i.value === s.mode; });
-    el.dpi.checked = !!s.use_dpi;
-    el.dpiPreset.value = s.dpi_preset || '9';
-    if (el.dpiPreset.selectedIndex < 0) el.dpiPreset.value = '9';
-    el.dpiArgs.value = s.dpi_args || '';
     el.doh.value = s.doh_server || '';
     el.lan.checked = !!s.bypass_lan;
     el.rDirectVN.checked = !!s.routing.direct_vn;
@@ -261,10 +247,7 @@ function readForm() {
     const checked = el.modeInputs.find((i) => i.checked);
     return {
         ...settings,
-        mode: checked ? checked.value : (settings?.mode || 'bypass'),
-        use_dpi: el.dpi.checked,
-        dpi_preset: el.dpiPreset.value,
-        dpi_args: el.dpiArgs.value.trim(),
+        mode: checked ? checked.value : (settings?.mode || 'warp'),
         doh_server: el.doh.value.trim(),
         bypass_lan: el.lan.checked,
         routing: {
@@ -458,18 +441,13 @@ function renderDuration() {
 }
 
 function renderModes() {
-    const mode = settings?.mode || 'bypass';
+    const mode = settings?.mode || 'warp';
     document.querySelectorAll('.mode').forEach((card) => {
         card.classList.toggle('sel', card.dataset.mode === mode);
     });
-    el.bypassPanel.hidden = mode !== 'bypass';
     el.warpPanel.hidden = mode !== 'warp';
     el.customPanel.hidden = mode !== 'custom';
     el.subPanel.hidden = mode !== 'custom';
-
-    // bypass
-    el.dpiOpts.classList.toggle('dim', !el.dpi.checked);
-    el.dpiArgsRow.hidden = el.dpiPreset.value !== 'custom';
 }
 
 function warpTypeLabel(t) {
@@ -506,7 +484,7 @@ function renderWarp() {
 
     el.warpEndpoint.textContent = w.endpoint ? hostPort(w.endpoint, w.endpoint_port) : 'Mặc định';
 
-    const tunneled = status.running && status.mode !== 'bypass';
+    const tunneled = status.running;
     const scanBusy = isBusy('scan');
     el.warpScan.disabled = tunneled || scanBusy;
     el.warpScan.textContent = scanBusy ? 'Đang quét… (~30s)' : 'Quét endpoint';
@@ -624,10 +602,6 @@ function renderSubs() {
 }
 
 function renderOptions() {
-    const mode = settings?.mode || 'bypass';
-    const routed = mode !== 'bypass';
-    el.routingBlock.classList.toggle('dim', !routed);
-    el.routingNote.hidden = routed;
     el.startMinRow.classList.toggle('dim', !el.startWin.checked);
     el.startMin.disabled = !el.startWin.checked;
 
@@ -661,12 +635,6 @@ function applyOS(os) {
     if (!os || document.body.dataset.os === os) return;
     document.body.dataset.os = os;
     if (os !== 'linux') return;
-    for (const o of el.dpiPreset.querySelectorAll('option[data-linux]')) o.textContent = o.dataset.linux;
-    // No GoodbyeDPI arguments on Linux; a saved "custom" behaves like the default.
-    const wasCustom = el.dpiPreset.value === 'custom';
-    el.dpiPreset.querySelector('option[value="custom"]')?.remove();
-    if (wasCustom || el.dpiPreset.selectedIndex < 0) el.dpiPreset.value = '9';
-    el.dpiPreset.setAttribute('aria-label', 'Kiểu chống DPI');
     for (const t of document.querySelectorAll('[data-linux-placeholder]')) t.placeholder = t.dataset.linuxPlaceholder;
 }
 
@@ -1039,9 +1007,9 @@ el.openData.addEventListener('click', () => OpenDataFolder().catch((e) => append
 el.quit.addEventListener('click', () => { flushSave().catch(() => {}).finally(() => Quit()); });
 
 el.modeInputs.forEach((i) => i.addEventListener('change', onFormChange));
-[el.dpi, el.dpiPreset, el.lan, el.rDirectVN, el.killSwitch, el.autoReconnect, el.autoConnect,
+[el.lan, el.rDirectVN, el.killSwitch, el.autoReconnect, el.autoConnect,
     el.startWin, el.startMin, el.closeTray, el.notify, el.interruptSwitch].forEach((i) => i.addEventListener('change', onFormChange));
-[el.dpiArgs, el.doh, el.rDirectDomains, el.rProxyDomains, el.rDirectProcs]
+[el.doh, el.rDirectDomains, el.rProxyDomains, el.rDirectProcs]
     .forEach((i) => i.addEventListener('input', onFormChange));
 
 // "?" buttons expand the explanation whose id is in data-help. Capture phase +

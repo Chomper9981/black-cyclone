@@ -1,6 +1,6 @@
 # BlackCyclone (Android)
 
-Bản Android của chế độ **Cloudflare WARP** trong [RedCyclone VPN](../redcyclone-vpn) (desktop).
+Bản Android của chế độ **Cloudflare WARP** trong [Black Cyclone](../README.md) (desktop).
 Kotlin + Jetpack Compose làm giao diện / `VpnService`, lõi Go (`wireguard-go` userspace) build bằng `gomobile`.
 
 ## Vì sao không dùng thư viện WireGuard Android chính thức

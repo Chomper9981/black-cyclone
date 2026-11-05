@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 func TestNetworkKeyIgnoresLiveSettings(t *testing.T) {
@@ -92,16 +92,5 @@ func TestApplyLiveAutoReconnectOnWhileBlocked(t *testing.T) {
 	a.session++ // cancel the spawned loop before it tries to start sing-box
 	if a.state != StateReconnecting {
 		t.Fatalf("state=%s, want reconnecting", a.state)
-	}
-}
-
-func TestApplyLiveKillSwitchIgnoredInBypass(t *testing.T) {
-	conf := settings.Default() // bypass mode never blocks
-	a := newTestApp(StateReconnecting, false, conf)
-	s := conf
-	s.KillSwitch = true
-	a.applyLiveLocked(s)
-	if a.blocking || a.state != StateReconnecting {
-		t.Fatalf("state=%s blocking=%v", a.state, a.blocking)
 	}
 }

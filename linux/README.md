@@ -52,14 +52,11 @@ Lưu ý bảo mật: mọi user chạy được `/opt/blackcyclone/BlackCyclone`
 
 | | Windows | Linux |
 |---|---|---|
-| Chống DPI (chế độ Vượt chặn) | GoodbyeDPI (WinDivert) | Phân mảnh TLS có sẵn trong sing-box (`tls_fragment` / `tls_record_fragment`) + chặn QUIC. Không có tuỳ chỉnh tham số GoodbyeDPI. |
 | Mã hoá `settings.json` | DPAPI | XChaCha20-Poly1305, khoá ngẫu nhiên ở `~/.config/BlackCyclone/settings.key` (quyền 0600). Chống lộ khi copy riêng `settings.json` đi đâu đó, nhưng không chống được người đọc được cả thư mục. |
 | Khởi động cùng máy | Task Scheduler | `~/.config/autostart/blackcyclone.desktop` |
 | Dữ liệu | `%APPDATA%\BlackCyclone` | `~/.config/BlackCyclone` |
 | Ứng dụng đi thẳng | `steam.exe` | tên tiến trình, ví dụ `steam` |
 | Bắt traffic | TUN, stack `mixed` | TUN stack `gvisor` + `auto_redirect` (nftables): TCP và DNS được chuyển thẳng vào sing-box. Không bị firewall (UFW) chặn, và bắt được cả DNS của systemd-resolved. Kernel cần nftables (mọi distro hiện nay). |
-
-Ánh xạ kiểu chống DPI: `9` → chia gói TCP, `9q` → chia gói TCP + chặn QUIC, `5` → chia bản ghi TLS (nhẹ). Bản Windows giữ nguyên GoodbyeDPI. Settings dùng chung tên preset nên copy cấu hình qua lại vẫn được.
 
 ## Khay hệ thống
 

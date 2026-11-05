@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 // Endpoint is a WARP UDP endpoint candidate.

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"redcyclone-vpn/internal/settings"
+	"black-cyclone/internal/settings"
 )
 
 // Options carries runtime details that are not user settings.
@@ -20,12 +20,6 @@ type Options struct {
 	CacheFile   string // sing-box cache.db (rule-set cache, selected server)
 	ClashAPI    string // "127.0.0.1:port" for stats / server switching; empty disables
 	ClashSecret string
-
-	// TLSFragment splits the TLS ClientHello so DPI cannot read the SNI: "tcp"
-	// (into TCP segments) or "record" (into TLS records); empty disables. Linux
-	// uses this in bypass mode in place of GoodbyeDPI.
-	TLSFragment string
-	BlockQUIC   bool // reject QUIC so browsers fall back to TCP, where fragmentation applies
 }
 
 // Outbound tags used by the app (the Clash API addresses them by tag).
@@ -51,29 +45,30 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 		return nil, nil, err
 	}
 
-	// "dns-direct": DoH straight from this machine. Used in bypass mode, for
-	// direct-routed domains, and to resolve the proxy server's own hostname.
+	// "dns-direct": DoH straight from this machine. Used for direct-routed
+	// domains and to resolve the proxy server's own hostname.
 	direct := clone(doh)
 	direct["tag"] = "dns-direct"
+	// "dns-remote": resolve through the tunnel so the ISP never sees the queries.
+	remote := clone(doh)
+	remote["tag"] = "dns-remote"
+	remote["detour"] = TagProxy
 	servers := []any{
 		map[string]any{"type": "local", "tag": "dns-local"},
 		direct,
+		remote,
 	}
-	finalDNS := "dns-direct"
-	finalOut := "direct"
 
 	outbounds := []any{map[string]any{"type": "direct", "tag": "direct"}}
 	var endpoints []any
 	var warnings []string
 
 	switch s.Mode {
-	case settings.ModeBypass:
 	case settings.ModeWarp:
 		if s.Warp == nil || s.Warp.PrivateKey == "" {
 			return nil, nil, fmt.Errorf("chưa đăng ký WARP")
 		}
 		endpoints = append(endpoints, warpEndpoint(s.Warp))
-		finalOut = TagProxy
 	case settings.ModeCustom:
 		obs, w, err := serverOutbounds(s)
 		if err != nil {
@@ -81,7 +76,6 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 		}
 		outbounds = append(outbounds, obs...)
 		warnings = w
-		finalOut = TagProxy
 	default:
 		return nil, nil, fmt.Errorf("mode không hợp lệ: %q", s.Mode)
 	}
@@ -90,55 +84,37 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 		map[string]any{"action": "sniff"},
 		map[string]any{"protocol": "dns", "action": "hijack-dns"},
 	}
-	if o.BlockQUIC {
-		rules = append(rules, map[string]any{"protocol": "quic", "action": "reject"})
-	}
-	switch o.TLSFragment {
-	case "tcp":
-		rules = append(rules, map[string]any{"action": "route-options", "tls_fragment": true})
-	case "record":
-		rules = append(rules, map[string]any{"action": "route-options", "tls_record_fragment": true})
-	}
 	if s.BypassLAN {
 		rules = append(rules, map[string]any{"ip_is_private": true, "outbound": "direct"})
 	}
 	var dnsRules []any
 	var ruleSets []any
 
-	if finalOut == TagProxy {
-		// Resolve through the tunnel so the ISP never sees the queries.
-		remote := clone(doh)
-		remote["tag"] = "dns-remote"
-		remote["detour"] = TagProxy
-		servers = append(servers, remote)
-		finalDNS = "dns-remote"
-
-		r := s.Routing
-		if procs := cleanList(r.DirectProcesses); len(procs) > 0 {
-			rules = append(rules, map[string]any{"process_name": procs, "outbound": "direct"})
-		}
-		if doms := cleanDomains(r.ProxyDomains); len(doms) > 0 {
-			rules = append(rules, map[string]any{"domain_suffix": doms, "outbound": TagProxy})
-			dnsRules = append(dnsRules, map[string]any{"domain_suffix": doms, "server": "dns-remote"})
-		}
-		directDoms := cleanDomains(r.DirectDomains)
-		if r.DirectVN {
-			directDoms = append(directDoms, "vn")
-		}
-		if len(directDoms) > 0 {
-			rules = append(rules, map[string]any{"domain_suffix": directDoms, "outbound": "direct"})
-			// Resolve locally so CDNs hand out a nearby address.
-			dnsRules = append(dnsRules, map[string]any{"domain_suffix": directDoms, "server": "dns-direct"})
-		}
-		if r.DirectVN {
-			ruleSets = append(ruleSets, geoipVN(o.BinDir))
-			rules = append(rules, map[string]any{"rule_set": "geoip-vn", "outbound": "direct"})
-		}
+	r := s.Routing
+	if procs := cleanList(r.DirectProcesses); len(procs) > 0 {
+		rules = append(rules, map[string]any{"process_name": procs, "outbound": "direct"})
+	}
+	if doms := cleanDomains(r.ProxyDomains); len(doms) > 0 {
+		rules = append(rules, map[string]any{"domain_suffix": doms, "outbound": TagProxy})
+		dnsRules = append(dnsRules, map[string]any{"domain_suffix": doms, "server": "dns-remote"})
+	}
+	directDoms := cleanDomains(r.DirectDomains)
+	if r.DirectVN {
+		directDoms = append(directDoms, "vn")
+	}
+	if len(directDoms) > 0 {
+		rules = append(rules, map[string]any{"domain_suffix": directDoms, "outbound": "direct"})
+		// Resolve locally so CDNs hand out a nearby address.
+		dnsRules = append(dnsRules, map[string]any{"domain_suffix": directDoms, "server": "dns-direct"})
+	}
+	if r.DirectVN {
+		ruleSets = append(ruleSets, geoipVN(o.BinDir))
+		rules = append(rules, map[string]any{"rule_set": "geoip-vn", "outbound": "direct"})
 	}
 
 	dns := map[string]any{
 		"servers":  servers,
-		"final":    finalDNS,
+		"final":    "dns-remote",
 		"strategy": "prefer_ipv4",
 	}
 	if len(dnsRules) > 0 {
@@ -146,7 +122,7 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 	}
 	route := map[string]any{
 		"rules":                   rules,
-		"final":                   finalOut,
+		"final":                   TagProxy,
 		"auto_detect_interface":   true,
 		"default_domain_resolver": "dns-direct",
 	}

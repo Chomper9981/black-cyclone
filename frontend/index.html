@@ -64,7 +64,7 @@
 
     <!-- ============ Tab: Kết nối ============ -->
     <div class="pane" data-pane="conn">
-        <p class="tab-intro">Chọn cách vượt chặn. Cài đặt riêng của chế độ đang chọn hiện ở bên dưới. Bấm <span class="help-icon" aria-hidden="true">?</span> cạnh mỗi mục để xem giải thích chi tiết.</p>
+        <p class="tab-intro">Chọn đường đi cho traffic. Cài đặt riêng của chế độ đang chọn hiện ở bên dưới. Bấm <span class="help-icon" aria-hidden="true">?</span> cạnh mỗi mục để xem giải thích chi tiết.</p>
 
         <section class="block">
             <div class="block-title row-title">
@@ -72,16 +72,10 @@
                 <button class="help" type="button" data-help="h-modes" aria-expanded="false" title="Giải thích">?</button>
             </div>
             <div id="h-modes" class="help-text" hidden>
-                <p><b>Vượt chặn</b> — chỉ mã hoá DNS và làm rối gói tin để qua mặt bộ lọc của nhà mạng. Nhanh nhất, không cần server, không tốn băng thông của ai. Nhưng website vẫn thấy IP nhà mạng của bạn, và không vượt được trang bị chặn theo IP.</p>
                 <p><b>Cloudflare WARP</b> — toàn bộ traffic đi qua mạng Cloudflare (miễn phí, mã hoá WireGuard). Website thấy IP Cloudflare thay vì IP của bạn. Một số trang chặn hoặc bắt captcha với IP WARP; tốc độ phụ thuộc giờ cao điểm.</p>
                 <p><b>Server riêng</b> — dùng VPS hoặc dịch vụ VPN bạn có (link chia sẻ hoặc subscription). Vượt được mọi kiểu chặn, chọn được quốc gia; tốc độ và độ ổn định tuỳ server.</p>
             </div>
             <div id="modes" class="modes" role="radiogroup">
-                <label class="mode" data-mode="bypass">
-                    <input type="radio" name="mode" value="bypass">
-                    <span class="mode-name">Vượt chặn</span>
-                    <span class="mode-desc">DNS mã hoá (DoH) + chống DPI. Không cần server, không đổi IP.</span>
-                </label>
                 <label class="mode" data-mode="warp">
                     <input type="radio" name="mode" value="warp">
                     <span class="mode-name">Cloudflare WARP</span>
@@ -91,50 +85,6 @@
                     <input type="radio" name="mode" value="custom">
                     <span class="mode-name">Server riêng</span>
                     <span class="mode-desc">VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC hoặc subscription.</span>
-                </label>
-            </div>
-        </section>
-
-        <!-- Bypass -->
-        <section id="bypass-panel" class="block" hidden>
-            <div class="block-title">Chống DPI</div>
-            <div class="opt">
-                <label class="check">
-                    <input id="dpi" type="checkbox">
-                    <span><span class="os-win">Bật GoodbyeDPI</span><span class="os-linux">Bật chống DPI</span><small>Làm rối gói tin để bộ lọc của nhà mạng không đọc được tên trang</small></span>
-                </label>
-                <button class="help" type="button" data-help="h-dpi" aria-expanded="false" title="Giải thích">?</button>
-            </div>
-            <div id="h-dpi" class="help-text" hidden>
-                <p>Khi bạn mở một trang HTTPS, tên trang (SNI) nằm ở dạng chữ thường trong gói tin đầu tiên. Bộ lọc DPI của nhà mạng đọc tên đó để chặn hoặc bóp băng thông. <span class="os-win">GoodbyeDPI chia nhỏ / làm sai lệch gói tin này</span><span class="os-linux">sing-box chia nhỏ gói tin này</span> để bộ lọc không nhận ra, còn website vẫn nhận đủ và hoạt động bình thường.</p>
-                <p>Tắt đi nếu một trang chỉ hỏng khi bật nó. Chỉ có tác dụng ở chế độ Vượt chặn.</p>
-            </div>
-            <div id="dpi-opts" class="sub">
-                <div class="field">
-                    <div class="row-title">
-                        <span>Kiểu</span>
-                        <button class="help" type="button" data-help="h-dpi-preset" aria-expanded="false" title="Giải thích">?</button>
-                    </div>
-                    <select id="dpi-preset" aria-label="Kiểu GoodbyeDPI">
-                        <option value="9" data-linux="Chia gói TCP — mặc định">9 — mặc định, chống DPI mạnh + gói giả</option>
-                        <option value="9q" data-linux="Chia gói TCP + chặn QUIC (giúp YouTube)">9q — như 9 + chặn QUIC (giúp YouTube)</option>
-                        <option value="5" data-linux="Chia bản ghi TLS — nhẹ">5 — nhẹ</option>
-                        <option value="custom" class="os-win">Tuỳ chỉnh…</option>
-                    </select>
-                </div>
-                <div id="h-dpi-preset" class="help-text" hidden>
-                    <p class="os-win"><b>9</b> — mạnh nhất: chia nhỏ gói tin và gửi thêm gói giả (sai checksum / sai số thứ tự) để đánh lừa bộ lọc. Nên dùng mặc định.</p>
-                    <p class="os-win"><b>9q</b> — như 9 và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà GoodbyeDPI xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
-                    <p class="os-win"><b>5</b> — nhẹ, không gửi gói giả. Dùng nếu kiểu 9 làm vài trang bị lỗi.</p>
-                    <p class="os-win"><b>Tuỳ chỉnh</b> — tự nhập tham số GoodbyeDPI (xem <code>goodbyedpi.exe --help</code>).</p>
-                    <p class="os-linux"><b>Chia gói TCP</b> — gói tin đầu tiên (chứa tên trang) được gửi thành nhiều gói TCP nhỏ, bộ lọc chỉ thấy từng mảnh. Nên dùng mặc định.</p>
-                    <p class="os-linux"><b>Chia gói TCP + chặn QUIC</b> — như trên và chặn thêm QUIC (HTTP/3 qua UDP), buộc trình duyệt quay về TCP mà cách chia gói xử lý được. Dùng khi YouTube / Google vẫn chậm hoặc bị chặn.</p>
-                    <p class="os-linux"><b>Chia bản ghi TLS</b> — nhẹ hơn: tách tên trang ra nhiều bản ghi TLS trong cùng gói tin. Dùng nếu kiểu mặc định làm vài trang bị lỗi.</p>
-                    <p class="os-linux">Trên Linux không có GoodbyeDPI; chống DPI do sing-box đảm nhận.</p>
-                </div>
-                <label id="dpi-args-row" class="field" hidden>
-                    <span>Tham số GoodbyeDPI <small>(cách nhau bằng dấu cách)</small></span>
-                    <input id="dpi-args" type="text" spellcheck="false" placeholder="-5 --dns-addr 1.1.1.1 --dns-port 53">
                 </label>
             </div>
         </section>
@@ -251,7 +201,6 @@
 
         <section id="routing-block" class="block">
             <div class="block-title">Định tuyến</div>
-            <div id="routing-note" class="hint note" hidden>Chỉ áp dụng cho chế độ WARP và Server riêng. Ở chế độ Vượt chặn mọi traffic đều đi thẳng.</div>
             <div class="opt">
                 <label class="check">
                     <input id="r-direct-vn" type="checkbox">
@@ -339,7 +288,7 @@
             </div>
             <div id="h-ks" class="help-text" hidden>
                 <p>Bình thường khi VPN dừng bất ngờ, máy tự quay về mạng thường và mọi trang bạn đang mở sẽ thấy IP thật. Với kill switch, app giữ card mạng ảo và <b>chặn mọi kết nối Internet</b> thay vào đó.</p>
-                <p>Mạng bị chặn cho đến khi kết nối lại thành công hoặc bạn bấm <b>Ngắt kết nối</b>. Mạng LAN vẫn dùng được nếu bật mục LAN ở tab Định tuyến. Không áp dụng cho chế độ Vượt chặn vì chế độ đó không giấu IP.</p>
+                <p>Mạng bị chặn cho đến khi kết nối lại thành công hoặc bạn bấm <b>Ngắt kết nối</b>. Mạng LAN vẫn dùng được nếu bật mục LAN ở tab Định tuyến.</p>
             </div>
             <div class="opt">
                 <label class="check">
@@ -438,7 +387,7 @@
             <summary>Nhật ký <span id="log-count" class="count"></span>
                 <button id="log-clear" class="link" type="button">xoá</button>
             </summary>
-            <p class="hint">Hoạt động của app, sing-box<span class="os-win"> và GoodbyeDPI</span><span class="os-linux"></span>. Khi báo lỗi, gửi kèm file <code>app.log</code> trong thư mục dữ liệu.</p>
+            <p class="hint">Hoạt động của app và sing-box. Khi báo lỗi, gửi kèm file <code>app.log</code> trong thư mục dữ liệu.</p>
             <pre id="log"></pre>
         </details>
     </div>

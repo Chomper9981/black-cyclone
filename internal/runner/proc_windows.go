@@ -17,7 +17,7 @@ import (
 const exeSuffix = ".exe"
 
 // Required lists the files that must exist in the bin directory.
-var Required = []string{"sing-box.exe", "goodbyedpi.exe", "WinDivert.dll", "WinDivert64.sys"}
+var Required = []string{"sing-box.exe"}
 
 // prepare creates the child suspended (afterStart puts it in the Job Object
 // before it runs) with its own hidden console (CREATE_NO_WINDOW) so Stop can
@@ -261,7 +261,8 @@ func sendCtrlC(pid uint32, done <-chan struct{}) error {
 
 // ---- Stale process cleanup ------------------------------------------------
 
-// staleNames are the helper images KillStale looks for.
+// staleNames are the helper images KillStale looks for. goodbyedpi.exe was
+// bundled by versions that had the bypass mode; it may still be left over.
 var staleNames = []string{"sing-box.exe", "goodbyedpi.exe"}
 
 // KillStale terminates leftover sing-box.exe / goodbyedpi.exe processes whose

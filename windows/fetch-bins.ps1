@@ -1,4 +1,4 @@
-# Downloads the runtime binaries (sing-box, GoodbyeDPI) into <project>\bin.
+# Downloads the runtime binary (sing-box) into <project>\bin.
 # Versions are pinned and verified by SHA-256: sing-box changes its config format
 # between releases, so bump these together with internal/singbox, its tests
 # and linux/fetch-bins.sh.
@@ -11,11 +11,6 @@ $assets = @(
         Name   = 'sing-box'
         Url    = 'https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-windows-amd64.zip'
         Sha256 = 'd8b86ef58936dba9230ec6a57ffa4243933f3c14ef4809828b6c553440ed1518'
-    },
-    @{
-        Name   = 'GoodbyeDPI'
-        Url    = 'https://github.com/ValdikSS/GoodbyeDPI/releases/download/0.2.2/goodbyedpi-0.2.2.zip'
-        Sha256 = '00a2f8b99cd817f8c7fc4c449033015f039d18af213de78cb66bf202277c0628'
     }
 )
 # Vietnamese IP ranges for "Web Việt Nam đi thẳng"; refreshed weekly upstream, so not pinned.
@@ -42,11 +37,6 @@ try {
     # sing-box: the windows-amd64 build ships with an embedded wintun driver.
     $dir = Get-Verified $assets[0]
     Get-ChildItem $dir -Recurse -Filter 'sing-box.exe' | Copy-Item -Destination $bin -Force
-
-    # GoodbyeDPI: x86_64 build + WinDivert driver.
-    $dir = Get-Verified $assets[1]
-    $x64 = Get-ChildItem $dir -Recurse -Directory -Filter 'x86_64' | Select-Object -First 1
-    Copy-Item (Join-Path $x64.FullName '*') -Destination $bin -Force
 
     try {
         Invoke-WebRequest $geoipUrl -OutFile (Join-Path $bin 'geoip-vn.srs') -UseBasicParsing
