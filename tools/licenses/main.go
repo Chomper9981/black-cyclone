@@ -5,7 +5,7 @@
 // Regenerate after changing dependencies (see THIRD_PARTY_NOTICES.md):
 //
 //	go run ./tools/licenses -goos windows,linux -tags desktop,production -o licenses/go-desktop.txt .
-//	go run ./tools/licenses -C mobile/core -goos android -o licenses/go-android.txt ./rcvcore golang.org/x/mobile/bind/seq
+//	go run ./tools/licenses -C mobile/core -goos android -tags <tags from mobile/build-apk.ps1> -o licenses/go-android.txt ./rcvcore golang.org/x/mobile/bind/seq
 package main
 
 import (

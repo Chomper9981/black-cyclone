@@ -6,6 +6,8 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -14,7 +16,10 @@ import javax.crypto.spec.GCMParameterSpec
 
 enum class SplitMode { OFF, EXCLUDE, INCLUDE }
 
-/** App settings. The WARP account (keys, API token) is encrypted with an Android Keystore key. */
+/**
+ * App settings. The WARP account (keys, API token) and the server links (which carry
+ * credentials) are encrypted with an Android Keystore key.
+ */
 object Prefs {
     private lateinit var sp: SharedPreferences
 
@@ -27,6 +32,43 @@ object Prefs {
         set(v) = sp.edit {
             if (v == null) remove("account") else putString("account", Crypto.encrypt(v.json))
         }
+
+    var mode: Mode
+        get() = Mode.of(sp.getString("mode", null))
+        set(v) = sp.edit { putString("mode", v.id) }
+
+    var servers: List<ServerEntry>
+        get() = ServerEntry.listFromJson(sp.getString("servers", null)?.let { Crypto.decrypt(it) })
+        set(v) = sp.edit { putString("servers", Crypto.encrypt(ServerEntry.listToJson(v))) }
+
+    /** ServerEntry.id, or ServerEntry.AUTO for the lowest-latency server. */
+    var selectedServer: String
+        get() = sp.getString("selected_server", ServerEntry.AUTO)!!
+        set(v) = sp.edit { putString("selected_server", v) }
+
+    /** Vietnamese IPs and .vn domains skip the tunnel. */
+    var directVn: Boolean
+        get() = sp.getBoolean("direct_vn", true)
+        set(v) = sp.edit { putBoolean("direct_vn", v) }
+
+    /** Why the current mode cannot connect yet, or null when it can. */
+    fun connectProblem(): String? = when (mode) {
+        Mode.WARP -> if (account == null) "Hãy đăng ký WARP trước" else null
+        Mode.CUSTOM -> if (servers.isEmpty()) "Hãy thêm server trước (dán link vless://…)" else null
+    }
+
+    /** Settings for the Go core, in the JSON layout of the desktop app's settings.Settings. */
+    fun coreSettingsJson(): String {
+        val o = JSONObject()
+            .put("mode", mode.id)
+            .put("bypass_lan", bypassLan)
+            .put("servers", JSONArray().apply { servers.forEach { put(it.toJson()) } })
+            .put("selected_server", selectedServer)
+            .put("routing", JSONObject().put("direct_vn", directVn))
+            .put("interrupt_on_switch", true)
+        account?.let { o.put("warp", JSONObject(it.json)) }
+        return o.toString()
+    }
 
     var bypassLan: Boolean
         get() = sp.getBoolean("bypass_lan", true)

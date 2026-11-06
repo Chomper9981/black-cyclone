@@ -1,23 +1,38 @@
 # Third-party notices
 
-> Black Cyclone tự nó theo giấy phép MIT (xem `LICENSE`). Các bản phát hành có kèm
-> hoặc build cùng phần mềm của bên thứ ba dưới đây, mỗi phần giữ giấy phép riêng của nó.
+> Mã nguồn Black Cyclone theo giấy phép MIT (xem `LICENSE`). Bản Windows/Linux chạy
+> sing-box như một chương trình riêng. App Android nhúng sing-box vào bên trong nên
+> được phát hành theo GNU GPL 3.0. Phần mềm bên thứ ba dưới đây giữ giấy phép riêng.
 
-Black Cyclone is licensed under the MIT License (see `LICENSE`). Release builds
-include or are built with the third-party software listed below, each under its
-own license. The license texts are in the `licenses/` folder next to this file.
+The Black Cyclone source code is licensed under the MIT License (see `LICENSE`).
+Release builds include or are built with the third-party software listed below,
+each under its own license. The license texts are in the `licenses/` folder next
+to this file.
+
+- **Windows and Linux builds** run sing-box as a separate program; the app
+  itself stays under the MIT License.
+- **The Android app** links sing-box into its Go core, so the APK as a whole is
+  distributed under the **GNU General Public License v3.0 or later**
+  (`licenses/GPL-3.0.txt`). Its complete corresponding source is this
+  repository at the release's tag (the Android app in `mobile/`, the shared
+  Go packages in `internal/`), plus the module versions pinned in
+  `mobile/core/go.mod` and `go.sum`.
 
 Black Cyclone is an independent project. It is not affiliated with, endorsed by
 or sponsored by the sing-box project, SagerNet, Cloudflare or MaxMind.
 
-## sing-box (Windows and Linux builds)
+## sing-box
 
 The Windows installer and the Linux install ship `sing-box` as a separate
 program (`bin/sing-box.exe` on Windows, `bin/sing-box` on Linux). Black Cyclone
 starts it as its own process and talks to it through a JSON configuration file
-and a local HTTP API; it does not link against or contain sing-box code.
+and a local HTTP API; the desktop app does not link against or contain sing-box
+code.
 
-- Version: 1.14.3, the official, unmodified release binary
+The Android app compiles sing-box's Go packages, unmodified, into its core
+(`mobile/core`, built with gomobile).
+
+- Version: 1.14.3; the desktop builds ship the official, unmodified release binary
 - Project: https://github.com/SagerNet/sing-box
 - Corresponding source code: https://github.com/SagerNet/sing-box/tree/v1.14.3
   (also downloadable as https://github.com/SagerNet/sing-box/archive/refs/tags/v1.14.3.tar.gz)
@@ -99,19 +114,23 @@ WebKitGTK libraries.
 
 ## Android app
 
-The Android app does not contain sing-box. Its core is Go, built with gomobile;
-complete license texts are in `licenses/go-android.txt`.
+The Android app (GPL-3.0-or-later, see above) contains:
 
 | Component | License |
 |---|---|
-| golang.zx2c4.com/wireguard (wireguard-go) | MIT |
-| Go standard library, golang.org/x/crypto, mobile, net, sys | BSD-3-Clause |
+| sing-box 1.14.3 and its SagerNet libraries (sing, sing-tun, sing-quic, sing-vmess, …) | GPL-3.0-or-later |
+| gVisor, quic-go, uTLS, wireguard-go and the other Go modules sing-box uses | MIT, BSD, Apache-2.0, ISC, MPL-2.0 |
+| Go standard library, golang.org/x/* | BSD-3-Clause |
 | AndroidX (core, activity, lifecycle) and Jetpack Compose | Apache-2.0 |
 | Kotlin standard library | Apache-2.0 |
+| geoip-vn.srs, when bundled (see above) | GPL-3.0-or-later; GeoLite2 data by MaxMind |
 
-The Apache License 2.0 text is in `licenses/Apache-2.0.txt`. The APK carries
-these files (with `LICENSE` and this notice) under `assets/licenses/`; the app
-shows them in Cài đặt → Giới thiệu → Giấy phép mã nguồn mở.
+The complete license texts of all 76 Go modules, generated from the exact
+versions built, are in `licenses/go-android.txt`; the GNU GPL and Apache
+License texts are in `licenses/GPL-3.0.txt` and `licenses/Apache-2.0.txt`.
+The APK carries these files (with `LICENSE` and this notice) under
+`assets/licenses/`; the app shows them in Cài đặt → Giới thiệu → Giấy phép mã
+nguồn mở.
 
 ## Updating this file
 
@@ -119,9 +138,10 @@ After changing Go dependencies, regenerate the license texts:
 
 ```sh
 go run ./tools/licenses -goos windows,linux -tags desktop,production -o licenses/go-desktop.txt .
-go run ./tools/licenses -C mobile/core -goos android -o licenses/go-android.txt ./rcvcore golang.org/x/mobile/bind/seq
+go run ./tools/licenses -C mobile/core -goos android -tags with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0 -o licenses/go-android.txt ./rcvcore golang.org/x/mobile/bind/seq
 ```
 
-When the bundled sing-box version changes (`windows/fetch-bins.ps1`,
-`linux/fetch-bins.sh`, `server/bcserver.sh`), update the version and source
-links in the sing-box section above.
+When the sing-box version changes (`windows/fetch-bins.ps1`,
+`linux/fetch-bins.sh`, `server/bcserver.sh`, `mobile/core/go.mod`), update the
+version and source links in the sing-box section above. The tags must match
+`$tags` in `mobile/build-apk.ps1`.

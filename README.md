@@ -1,11 +1,11 @@
 # Black Cyclone
 
-Ứng dụng giúp vượt chặn của nhà mạng, cho Windows và Linux. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, traffic đi qua Cloudflare WARP hoặc server riêng.
+Ứng dụng giúp vượt chặn của nhà mạng, cho Windows, Linux và Android. Go + Wails làm giao diện / điều khiển, `sing-box` làm lõi TUN, traffic đi qua Cloudflare WARP hoặc server riêng.
 
 Tác giả: **Red Cyclone** (GitHub: Chomper9981). Mã nguồn phát hành theo giấy phép [MIT](LICENSE).
 
 - Bản Linux: xem [`linux/README.md`](linux/README.md) (build, cài, cấp quyền, khác biệt với bản Windows).
-- Bản Android: xem [`mobile/README.md`](mobile/README.md).
+- Bản Android (cả WARP lẫn Server riêng, cùng lõi sing-box): xem [`mobile/README.md`](mobile/README.md).
 - Tự dựng server riêng trên một VPS trống (một lệnh, không cần tên miền hay dịch vụ trả phí): xem [`server/README.md`](server/README.md).
 
 Phần dưới đây mô tả bản Windows; phần lớn tính năng giống hệt trên Linux.
@@ -82,4 +82,5 @@ $env:RCV_LIVE=1; go test ./internal/warp     # gọi API WARP thật + quét end
 
 Mã nguồn của Black Cyclone phát hành theo giấy phép [MIT](LICENSE), © 2026 Red Cyclone.
 sing-box (tải về bằng script `fetch-bins`, kèm trong bộ cài) là phần mềm của SagerNet, theo giấy phép GPL-3.0-or-later.
+App Android nhúng sing-box vào lõi nên APK được phát hành theo GPL-3.0 (xem [`mobile/README.md`](mobile/README.md#giấy-phép)).
 Danh sách đầy đủ phần mềm bên thứ ba, nguồn gốc và giấy phép: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (thư mục [`licenses/`](licenses)).

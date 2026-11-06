@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import rcvcore.Rcvcore
 
@@ -32,6 +33,15 @@ data class ScanState(
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _account = MutableStateFlow(Prefs.account)
     val account: StateFlow<Account?> = _account.asStateFlow()
+
+    private val _mode = MutableStateFlow(Prefs.mode)
+    val mode: StateFlow<Mode> = _mode.asStateFlow()
+
+    private val _servers = MutableStateFlow(Prefs.servers)
+    val servers: StateFlow<List<ServerEntry>> = _servers.asStateFlow()
+
+    private val _selected = MutableStateFlow(Prefs.selectedServer)
+    val selectedServer: StateFlow<String> = _selected.asStateFlow()
 
     /** Label of the account operation in progress, or null. */
     private val _busy = MutableStateFlow<String?>(null)
@@ -76,7 +86,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         save(Account.parse(json) ?: error("Phản hồi đăng ký không hợp lệ"))
         _scan.value = ScanState()
         _toast.value = "Đã đăng ký WARP"
-        restartIfActive()
+        restartIfActive(Mode.WARP)
     }
 
     fun applyLicense(key: String) = op("Đang áp dụng key WARP+…") {
@@ -85,7 +95,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val updated = Account.parse(json) ?: error("Phản hồi không hợp lệ")
         save(updated)
         _toast.value = "Đã áp dụng key: ${updated.typeLabel}"
-        restartIfActive()
+        restartIfActive(Mode.WARP)
     }
 
     /** Imports account JSON (e.g. exported from this app or the desktop app). */
@@ -96,14 +106,88 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         save(a)
         _toast.value = "Đã nhập tài khoản"
-        restartIfActive()
+        restartIfActive(Mode.WARP)
         return true
     }
 
     fun setEndpoint(ip: String, port: Int) {
         val acc = _account.value ?: return
         save(acc.withEndpoint(ip, port))
+        restartIfActive(Mode.WARP)
+    }
+
+    /* ---------------- Mode & servers ---------------- */
+
+    fun setMode(m: Mode) {
+        if (m == _mode.value) return
+        Prefs.mode = m
+        _mode.value = m
         restartIfActive()
+    }
+
+    private fun saveServers(list: List<ServerEntry>) {
+        Prefs.servers = list
+        _servers.value = list
+    }
+
+    /** Imports every share link found in text (one or many, e.g. the output of bcserver). */
+    fun addServers(text: String): Boolean {
+        val found = JSONArray(Rcvcore.parseLinks(text))
+        if (found.length() == 0) {
+            _toast.value = "Không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)"
+            return false
+        }
+        val list = _servers.value.toMutableList()
+        var added = 0
+        var firstError: String? = null
+        for (i in 0 until found.length()) {
+            val o = found.getJSONObject(i)
+            val err = o.optString("error")
+            if (err.isNotEmpty()) {
+                firstError = firstError ?: "${o.optString("name")}: $err"
+                Rcvcore.log("Bỏ qua link ${o.optString("name")}: $err")
+                continue
+            }
+            val link = o.getString("link")
+            if (list.any { it.link == link }) continue
+            list += ServerEntry(Rcvcore.newID(), o.optString("name").ifEmpty { "server" }, link)
+            added++
+        }
+        if (added == 0) {
+            _toast.value = firstError?.let { "Link không hợp lệ: $it" } ?: "Các server này đã có trong danh sách"
+            return firstError == null
+        }
+        val wasEmpty = _servers.value.isEmpty()
+        saveServers(list)
+        if (wasEmpty && list.size == 1) selectServer(list[0].id)
+        _toast.value = "Đã thêm $added server" + (firstError?.let { ", bỏ qua link lỗi" } ?: "")
+        restartIfActive(Mode.CUSTOM)
+        return true
+    }
+
+    fun removeServer(id: String) {
+        saveServers(_servers.value.filter { it.id != id })
+        if (_selected.value == id) selectServer(ServerEntry.AUTO)
+        restartIfActive(Mode.CUSTOM)
+    }
+
+    fun renameServer(id: String, name: String) {
+        val n = name.trim().ifEmpty { return }
+        saveServers(_servers.value.map { if (it.id == id) it.copy(name = n) else it })
+        restartIfActive(Mode.CUSTOM)
+    }
+
+    /** Selects a server (or ServerEntry.AUTO); switches a running tunnel without reconnecting. */
+    fun selectServer(id: String) {
+        Prefs.selectedServer = id
+        _selected.value = id
+        val st = TunnelState.state.value
+        if (st.active && st.mode == Mode.CUSTOM && _mode.value == Mode.CUSTOM) {
+            viewModelScope.launch(Dispatchers.IO) {
+                // Fails if the tunnel is only reconnecting / blocking: restart instead.
+                if (runCatching { Rcvcore.selectServer(id) }.isFailure) restartIfActive()
+            }
+        }
     }
 
     private var scanJob: Job? = null
@@ -151,7 +235,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Rcvcore.cancelScan()
     }
 
-    private fun restartIfActive() {
+    /** Reconnects a running tunnel so it picks up changed settings (only if they affect [forMode]). */
+    private fun restartIfActive(forMode: Mode? = null) {
+        if (forMode != null && forMode != _mode.value) return
         if (TunnelState.state.value.active) WarpVpnService.start(getApplication())
     }
 

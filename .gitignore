@@ -7,3 +7,5 @@ bin/
 # `go build .` output
 /black-cyclone
 /black-cyclone.exe
+# release packages (linux/docker-deb.ps1, release builds)
+/dist/

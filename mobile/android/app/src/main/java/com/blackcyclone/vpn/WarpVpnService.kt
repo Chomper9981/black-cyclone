@@ -9,7 +9,10 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.IpPrefix
+import android.net.LinkProperties
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -25,10 +28,21 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
+import rcvcore.Platform
 import rcvcore.Rcvcore
+import java.io.File
+import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
 
+/**
+ * The VPN: establishes the TUN interface (addresses, routes, DNS, per-app rules) and runs
+ * sing-box on it through the Go core, for both WARP and Server riêng. (The class keeps its
+ * WARP-only name so an existing "Always-on VPN" setting keeps pointing at it.)
+ */
 class WarpVpnService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var connectJob: Job? = null
@@ -36,6 +50,19 @@ class WarpVpnService : VpnService() {
     /** Kill switch: a VPN interface nobody reads, so all routed traffic is dropped. */
     @Volatile private var blockPfd: ParcelFileDescriptor? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var mode = Prefs.mode
+
+    private val platform = object : Platform {
+        override fun protect(fd: Int): Boolean = this@WarpVpnService.protect(fd)
+        override fun interfaces(): String = networkInterfacesJson()
+        override fun connectionOwner(protocol: Int, srcIP: String, srcPort: Int, dstIP: String, dstPort: Int): Int =
+            connectionOwnerUid(protocol, srcIP, srcPort, dstIP, dstPort)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        Rcvcore.setPlatform(platform)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISCONNECT) {
@@ -43,6 +70,7 @@ class WarpVpnService : VpnService() {
             return START_NOT_STICKY
         }
         // ACTION_CONNECT from the app/tile, or android.net.VpnService / null from always-on VPN.
+        mode = Prefs.mode
         startForegroundCompat(buildNotification(TunnelState.state.value.copy(status = Status.CONNECTING)))
         connect()
         return START_NOT_STICKY
@@ -54,7 +82,7 @@ class WarpVpnService : VpnService() {
             // Block before tearing the old tunnel down, so a reconnect never leaks.
             if (Prefs.killSwitch) holdBlock()
             stopTunnel()
-            TunnelState.set(TunnelInfo(status = Status.CONNECTING, blocking = blockPfd != null, lockdown = lockdownNow()))
+            TunnelState.set(TunnelInfo(status = Status.CONNECTING, mode = mode, blocking = blockPfd != null, lockdown = lockdownNow()))
             val delays = listOf(2_000L, 4_000L, 8_000L, 16_000L, 30_000L)
             var attempt = 0
             while (isActive) {
@@ -79,7 +107,7 @@ class WarpVpnService : VpnService() {
                 }
                 val blocking = blockPfd != null
                 // With the kill switch on, keep trying every 30s instead of giving up and unblocking.
-                if (Prefs.account == null || (attempt >= delays.size && !blocking)) {
+                if (Prefs.connectProblem() != null || (attempt >= delays.size && !blocking)) {
                     fail(err)
                     return@launch
                 }
@@ -96,44 +124,52 @@ class WarpVpnService : VpnService() {
     }
 
     private fun startTunnel() {
-        val account = Prefs.account ?: throw IllegalStateException("Chưa đăng ký WARP")
-        val pfd = newBuilder(account).establish() ?: throw IllegalStateException("Không tạo được VPN (chưa cấp quyền VPN?)")
+        Prefs.connectProblem()?.let { throw IllegalStateException(it) }
+        // sing-box needs the current default network before it dials out.
+        registerNetworkCallback()
+        reportDefaultNetwork()
+        val dataDir = prepareDataDir()
+        val pfd = newBuilder().establish() ?: throw IllegalStateException("Không tạo được VPN (chưa cấp quyền VPN?)")
         // The Go core owns the fd from here on, also on error.
-        Rcvcore.start(pfd.detachFd().toLong(), account.json)
+        Rcvcore.start(pfd.detachFd().toLong(), Prefs.coreSettingsJson(), dataDir)
         // The tunnel's interface has replaced the blocking one, so dropping it opens no gap.
         releaseBlock()
         running = true
-        registerNetworkCallback()
+        val endpoint = if (mode == Mode.WARP) Prefs.account?.endpointText else null
         TunnelState.set(
             TunnelInfo(
-                status = Status.CONNECTING, endpoint = account.endpointText,
+                status = Status.CONNECTING, mode = mode, endpoint = endpoint,
                 startedAt = SystemClock.elapsedRealtime(), lockdown = lockdownNow(),
             ),
         )
     }
 
-    /** Builder with the tunnel's addresses, routes, DNS and split tunnelling. */
-    private fun newBuilder(account: Account?): Builder {
+    /** Folder for sing-box's cache; also gets the bundled geoip-vn.srs rule set. */
+    private fun prepareDataDir(): String {
+        val dir = File(filesDir, "core").apply { mkdirs() }
+        val srs = File(dir, "geoip-vn.srs")
+        runCatching {
+            assets.open("geoip-vn.srs").use { input ->
+                val bytes = input.readBytes()
+                if (!srs.exists() || srs.length() != bytes.size.toLong()) srs.writeBytes(bytes)
+            }
+        } // not bundled: sing-box downloads it instead
+        return dir.absolutePath
+    }
+
+    /** Builder with sing-box's TUN addresses, routes, DNS and split tunnelling. */
+    private fun newBuilder(): Builder {
         val b = Builder()
             .setSession("BlackCyclone")
-            .setMtu(1280)
+            .setMtu(TUN_MTU)
             .setBlocking(false)
             .setConfigureIntent(mainActivityIntent(this))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) b.setMetered(false)
-
-        var v4 = false
-        var v6 = false
-        for (a in account?.addresses.orEmpty()) {
-            val (ip, len) = a.split('/').let { it[0] to (it.getOrNull(1)?.toIntOrNull() ?: if (it[0].contains(':')) 128 else 32) }
-            if (ip.isEmpty()) continue
-            b.addAddress(ip, len)
-            if (ip.contains(':')) v6 = true else v4 = true
-        }
-        // Both families need an address for their default route to be installed (and so
-        // blocked); without an account (kill switch only) any address will do.
-        if (!v4) b.addAddress("172.16.0.2", 32)
-        if (!v6) b.addAddress("fd00:7263::2", 128)
-        DNS.forEach { b.addDnsServer(it) }
+        // Must match the TUN inbound of internal/singbox (172.19.0.1/30, fdfe:dcba:9876::1/126).
+        b.addAddress("172.19.0.1", 30)
+        b.addAddress("fdfe:dcba:9876::1", 126)
+        // Any DNS server routed into the TUN is answered by sing-box (hijack-dns).
+        b.addDnsServer("172.19.0.2")
         addRoutes(b)
         applySplitTunnel(b)
         return b
@@ -143,7 +179,7 @@ class WarpVpnService : VpnService() {
     private fun holdBlock() {
         if (blockPfd != null) return
         val pfd = try {
-            newBuilder(Prefs.account).establish()
+            newBuilder().establish()
         } catch (e: Exception) {
             Rcvcore.log("Kill switch: không tạo được giao diện chặn: ${e.message}")
             null
@@ -185,7 +221,7 @@ class WarpVpnService : VpnService() {
     private fun applySplitTunnel(b: Builder) {
         val apps = Prefs.splitApps - packageName
         if (Prefs.splitMode == SplitMode.INCLUDE && apps.isNotEmpty()) {
-            // Only these apps use the tunnel; this app (and so wireguard-go's socket) stays outside.
+            // Only these apps use the tunnel; this app (and so sing-box's sockets) stays outside.
             var added = 0
             for (p in apps) {
                 try {
@@ -196,7 +232,8 @@ class WarpVpnService : VpnService() {
             }
             if (added > 0) return
         }
-        // Load-bearing: keep this app's own sockets (WireGuard UDP, WARP API) off the tunnel.
+        // Load-bearing: keep this app's own sockets (sing-box's outbound, WARP API) off the
+        // tunnel, on top of the per-socket protect() sing-box does.
         b.addDisallowedApplication(packageName)
         if (Prefs.splitMode == SplitMode.EXCLUDE) {
             for (p in apps) {
@@ -208,7 +245,7 @@ class WarpVpnService : VpnService() {
         }
     }
 
-    /** Polls traffic counters every second until the tunnel stops. */
+    /** Polls traffic counters and the core's health check every second until the tunnel stops. */
     private suspend fun monitor() {
         var lastRx = 0L
         var lastTx = 0L
@@ -216,19 +253,22 @@ class WarpVpnService : VpnService() {
         while (running) {
             val s = runCatching { JSONObject(Rcvcore.stats()) }.getOrNull()
             if (s != null && s.optBoolean("running")) {
-                val rx = s.optLong("rx")
-                val tx = s.optLong("tx")
-                val hs = s.optLong("handshake_ago_ms", -1)
+                val rx = s.optLong("down")
+                val tx = s.optLong("up")
+                val okAgo = s.optLong("ok_ago_ms", -1)
+                val server = s.optString("server").ifEmpty { null }
                 TunnelState.update { st ->
                     val elapsed = SystemClock.elapsedRealtime() - st.startedAt
-                    val status = if (hs >= 0) Status.CONNECTED else Status.CONNECTING
-                    val warn = if (hs < 0 && elapsed > NO_HANDSHAKE_WARN_MS) {
-                        "Chưa bắt tay được với server sau ${elapsed / 1000}s: endpoint có thể bị chặn, hãy quét endpoint."
-                    } else if (hs > STALE_HANDSHAKE_MS) {
-                        "Không bắt tay lại được ${hs / 1000}s: endpoint có thể đã bị chặn, hãy quét endpoint."
+                    val status = if (okAgo >= 0) Status.CONNECTED else Status.CONNECTING
+                    val hint = if (mode == Mode.WARP) "endpoint có thể bị chặn, hãy quét endpoint" else "kiểm tra link, tường lửa của VPS, hoặc thử server khác"
+                    val warn = if (okAgo < 0 && elapsed > NO_TRAFFIC_WARN_MS) {
+                        "Chưa thông được sau ${elapsed / 1000}s: $hint."
+                    } else if (okAgo > STALE_MS) {
+                        "Mất kết nối ${okAgo / 1000}s: $hint."
                     } else null
                     st.copy(
-                        status = status, message = warn, handshakeAgoMs = hs, lockdown = lockdownNow(),
+                        status = status, message = warn, delayMs = s.optLong("delay_ms"), okAgoMs = okAgo,
+                        lockdown = lockdownNow(), endpoint = server ?: st.endpoint,
                         rx = rx, tx = tx,
                         rxRate = (rx - lastRx).coerceAtLeast(0), txRate = (tx - lastTx).coerceAtLeast(0),
                     )
@@ -247,14 +287,14 @@ class WarpVpnService : VpnService() {
             // Stay up holding the block until the user disconnects.
             TunnelState.set(
                 TunnelInfo(
-                    status = Status.ERROR, blocking = true, lockdown = lockdownNow(),
+                    status = Status.ERROR, mode = mode, blocking = true, lockdown = lockdownNow(),
                     message = "$err. Kill switch đang chặn mọi kết nối để không lộ IP thật: bấm Ngắt để mở lại mạng.",
                 ),
             )
             notify(buildNotification(TunnelState.state.value))
             return
         }
-        TunnelState.set(TunnelInfo(status = Status.ERROR, message = err))
+        TunnelState.set(TunnelInfo(status = Status.ERROR, mode = mode, message = err))
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -270,13 +310,19 @@ class WarpVpnService : VpnService() {
     }
 
     private fun stopTunnel() {
-        unregisterNetworkCallback()
         if (running) {
             running = false
             Rcvcore.stop()
         }
+        unregisterNetworkCallback()
     }
 
+    /* ---------------- Network for sing-box ---------------- */
+
+    /**
+     * Follows the best physical network (Wi-Fi, mobile data, …), never a VPN: sing-box sends
+     * its traffic out through it. The plain default-network callback can report our own TUN.
+     */
     private fun registerNetworkCallback() {
         if (networkCallback != null) return
         val cm = getSystemService(ConnectivityManager::class.java)
@@ -284,26 +330,126 @@ class WarpVpnService : VpnService() {
             private var current: Network? = null
 
             override fun onAvailable(network: Network) {
-                setUnderlyingNetworks(arrayOf(network))
-                // Switched between Wi-Fi and mobile data: reopen WireGuard's sockets.
-                if (current != null && current != network && running) {
-                    Rcvcore.log("Mạng thay đổi, kết nối lại socket")
-                    Rcvcore.rebind()
-                }
                 current = network
+                setUnderlyingNetworks(arrayOf(network))
+                reportNetwork(cm, network)
+            }
+
+            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) {
+                if (network == current) reportNetwork(cm, network)
+            }
+
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                if (network == current) reportNetwork(cm, network)
             }
 
             override fun onLost(network: Network) {
-                if (network == current) setUnderlyingNetworks(null)
+                if (network != current) return
+                current = null
+                setUnderlyingNetworks(null)
+                Rcvcore.setDefaultInterface("", -1, false)
             }
         }
-        cm.registerDefaultNetworkCallback(cb)
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            cm.registerBestMatchingNetworkCallback(request, cb, android.os.Handler(mainLooper))
+        } else {
+            // Matches the network that satisfies the default request (usually Wi-Fi); does not
+            // bring up mobile data while Wi-Fi is connected.
+            cm.requestNetwork(request, cb)
+        }
         networkCallback = cb
     }
 
     private fun unregisterNetworkCallback() {
         networkCallback?.let { runCatching { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(it) } }
         networkCallback = null
+    }
+
+    /** Reports the current physical network right away, before the callback's first event. */
+    private fun reportDefaultNetwork() {
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val n = cm.activeNetwork?.takeIf { !isVpn(cm, it) } ?: physicalNetwork(cm)
+        if (n == null) Rcvcore.setDefaultInterface("", -1, false) else reportNetwork(cm, n)
+    }
+
+    private fun isVpn(cm: ConnectivityManager, n: Network): Boolean =
+        cm.getNetworkCapabilities(n)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) != false
+
+    /** A connected non-VPN network with Internet, validated ones first. */
+    @Suppress("DEPRECATION") // allNetworks: only for this one-off lookup
+    private fun physicalNetwork(cm: ConnectivityManager): Network? =
+        cm.allNetworks
+            .mapNotNull { n -> cm.getNetworkCapabilities(n)?.let { n to it } }
+            .filter { (_, c) -> !c.hasTransport(NetworkCapabilities.TRANSPORT_VPN) && c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) }
+            .sortedByDescending { (_, c) -> c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) }
+            .firstOrNull()?.first
+
+    private fun reportNetwork(cm: ConnectivityManager, network: Network) {
+        if (isVpn(cm, network)) return
+        val name = cm.getLinkProperties(network)?.interfaceName ?: return
+        val index = runCatching { NetworkInterface.getByName(name)?.index }.getOrNull() ?: return
+        val caps = cm.getNetworkCapabilities(network)
+        val metered = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false
+        Rcvcore.setDefaultInterface(name, index, metered)
+    }
+
+    /** UID of the app owning a connection, -1 if unknown (Android 10+). */
+    private fun connectionOwnerUid(protocol: Int, srcIP: String, srcPort: Int, dstIP: String, dstPort: Int): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return -1
+        return runCatching {
+            getSystemService(ConnectivityManager::class.java).getConnectionOwnerUid(
+                protocol,
+                InetSocketAddress(InetAddress.getByName(srcIP), srcPort),
+                InetSocketAddress(InetAddress.getByName(dstIP), dstPort),
+            )
+        }.getOrDefault(-1)
+    }
+
+    /** The device's networks as JSON for the core (see rcvcore.netInterface). */
+    private fun networkInterfacesJson(): String {
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val out = JSONArray()
+        @Suppress("DEPRECATION") // allNetworks: the callback-based replacement can't answer synchronously.
+        for (network in cm.allNetworks) {
+            val lp = cm.getLinkProperties(network) ?: continue
+            val caps = cm.getNetworkCapabilities(network) ?: continue
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
+            val name = lp.interfaceName ?: continue
+            val ni = runCatching { NetworkInterface.getByName(name) }.getOrNull() ?: continue
+            val type = when {
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                else -> "other"
+            }
+            val addrs = JSONArray()
+            lp.linkAddresses.forEach { la ->
+                val a = la.address
+                val host = if (a is Inet6Address) a.hostAddress!!.substringBefore('%') else a.hostAddress!!
+                addrs.put("$host/${la.prefixLength}")
+            }
+            val dns = JSONArray()
+            lp.dnsServers.forEach { dns.put(it.hostAddress!!.substringBefore('%')) }
+            out.put(
+                JSONObject()
+                    .put("name", name)
+                    .put("index", ni.index)
+                    .put("mtu", lp.mtu.takeIf { it > 0 } ?: runCatching { ni.mtu }.getOrDefault(1500))
+                    .put("type", type)
+                    .put("addresses", addrs)
+                    .put("dns", dns)
+                    .put("metered", !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
+                    .put("up", runCatching { ni.isUp }.getOrDefault(true))
+                    .put("loopback", false)
+                    .put("multicast", runCatching { ni.supportsMulticast() }.getOrDefault(false)),
+            )
+        }
+        return out.toString()
     }
 
     override fun onRevoke() {
@@ -334,9 +480,9 @@ class WarpVpnService : VpnService() {
 
     private fun buildNotification(st: TunnelInfo): Notification {
         val title = when {
-            st.status == Status.CONNECTED -> "WARP đã kết nối"
+            st.status == Status.CONNECTED -> "${mode.label} đã kết nối"
             st.blocking -> "Kill switch: đang chặn mạng"
-            else -> "Đang kết nối WARP…"
+            else -> "Đang kết nối ${mode.label}…"
         }
         val text = if (st.status == Status.CONNECTED) {
             "↓ ${formatRate(st.rxRate)}  ↑ ${formatRate(st.txRate)}  ·  ${st.endpoint ?: ""}"
@@ -362,10 +508,10 @@ class WarpVpnService : VpnService() {
         const val ACTION_CONNECT = "com.blackcyclone.vpn.CONNECT"
         const val ACTION_DISCONNECT = "com.blackcyclone.vpn.DISCONNECT"
         private const val NOTIFICATION_ID = 1
-        private const val NO_HANDSHAKE_WARN_MS = 10_000L
-        private const val STALE_HANDSHAKE_MS = 180_000L
+        private const val TUN_MTU = 9000
+        private const val NO_TRAFFIC_WARN_MS = 12_000L
+        private const val STALE_MS = 65_000L
 
-        private val DNS = listOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
         private val LAN = listOf(
             "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10",
             "fc00::/7", "fe80::/10",

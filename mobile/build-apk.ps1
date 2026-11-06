@@ -17,12 +17,16 @@ if (-not $SkipCore) {
         go install golang.org/x/mobile/cmd/gomobile@latest
         go install golang.org/x/mobile/cmd/gobind@latest
     }
+    # sing-box features compiled in (same names as its own release builds):
+    # TUN stack, QUIC (hysteria2/tuic), WireGuard (WARP), uTLS (Reality), Clash API (stats).
+    $tags = 'with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0'
+    $ldflags = '-s -w -buildid= -checklinkname=0 -X runtime.godebugDefault=multipathtcp=0,tlssha1=1'
     Push-Location "$root\core"
     try {
-        go test ./...
+        go test -tags $tags -ldflags=-checklinkname=0 ./...
         if ($LASTEXITCODE) { throw 'go test thất bại' }
-        gomobile bind -target android/arm64,android/arm,android/amd64 -androidapi 26 `
-            -ldflags '-s -w' -trimpath -o ..\android\app\libs\rcvcore.aar ./rcvcore
+        gomobile bind -target android/arm64,android/arm,android/amd64 -androidapi 26 -tags $tags `
+            -ldflags $ldflags -trimpath -o ..\android\app\libs\rcvcore.aar ./rcvcore
         if ($LASTEXITCODE) { throw 'gomobile bind thất bại' }
     } finally { Pop-Location }
 }
@@ -40,7 +44,11 @@ Get-ChildItem "$root\android\app\build\outputs\apk\$kind\*.apk" | ForEach-Object
 if (-not $Debug) {
     $ver = (Select-String -Path "$root\android\app\build.gradle.kts" -Pattern 'versionName = "(.+)"').Matches[0].Groups[1].Value
     New-Item -ItemType Directory -Force "$root\dist" | Out-Null
-    $out = "$root\dist\BlackCyclone-$ver.apk"
-    Copy-Item "$root\android\app\build\outputs\apk\release\app-release.apk" $out -Force
-    Write-Host "Đã chép: $out"
+    # One APK per ABI (app-arm64-v8a-release.apk, …) plus app-universal-release.apk.
+    Get-ChildItem "$root\android\app\build\outputs\apk\release\app-*-release.apk" | ForEach-Object {
+        $abi = $_.BaseName -replace '^app-', '' -replace '-release$', ''
+        $out = "$root\dist\BlackCyclone-$ver-$abi.apk"
+        Copy-Item $_.FullName $out -Force
+        Write-Host "Đã chép: $out"
+    }
 }

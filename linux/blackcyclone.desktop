@@ -2,10 +2,10 @@
 Type=Application
 Name=Black Cyclone
 GenericName=VPN
-Comment=Vượt chặn nhà mạng: DNS mã hoá + chống DPI, Cloudflare WARP, server riêng
+Comment=Vượt chặn nhà mạng: Cloudflare WARP hoặc server riêng
 Exec=/opt/blackcyclone/BlackCyclone
 Icon=blackcyclone
 Terminal=false
 Categories=Network;
-Keywords=vpn;warp;sing-box;dpi;
+Keywords=vpn;warp;sing-box;
 StartupWMClass=blackcyclone

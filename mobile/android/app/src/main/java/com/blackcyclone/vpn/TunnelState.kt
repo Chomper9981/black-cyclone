@@ -8,15 +8,19 @@ enum class Status { DISCONNECTED, CONNECTING, CONNECTED, ERROR }
 
 data class TunnelInfo(
     val status: Status = Status.DISCONNECTED,
+    val mode: Mode = Mode.WARP,
     /** Error text, or a warning while connecting. */
     val message: String? = null,
+    /** WARP endpoint, or the current server's name in Server riêng mode. */
     val endpoint: String? = null,
     val rx: Long = 0,
     val tx: Long = 0,
     val rxRate: Long = 0,
     val txRate: Long = 0,
-    /** Milliseconds since the last WireGuard handshake, -1 if none yet. */
-    val handshakeAgoMs: Long = -1,
+    /** Milliseconds since the last successful check through the tunnel, -1 if none yet. */
+    val okAgoMs: Long = -1,
+    /** Round trip of that check (an HTTPS request through the tunnel). */
+    val delayMs: Long = 0,
     /** elapsedRealtime when the tunnel came up, 0 if not running. */
     val startedAt: Long = 0,
     /** Kill switch holds a VPN interface that drops all traffic (tunnel down, reconnecting). */

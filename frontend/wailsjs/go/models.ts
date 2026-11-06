@@ -224,9 +224,6 @@ export namespace settings {
 	    mode: string;
 	    doh_server: string;
 	    bypass_lan: boolean;
-	    use_dpi: boolean;
-	    dpi_preset: string;
-	    dpi_args: string;
 	    servers: Server[];
 	    subscriptions: Subscription[];
 	    selected_server: string;
@@ -251,9 +248,6 @@ export namespace settings {
 	        this.mode = source["mode"];
 	        this.doh_server = source["doh_server"];
 	        this.bypass_lan = source["bypass_lan"];
-	        this.use_dpi = source["use_dpi"];
-	        this.dpi_preset = source["dpi_preset"];
-	        this.dpi_args = source["dpi_args"];
 	        this.servers = this.convertValues(source["servers"], Server);
 	        this.subscriptions = this.convertValues(source["subscriptions"], Subscription);
 	        this.selected_server = source["selected_server"];
