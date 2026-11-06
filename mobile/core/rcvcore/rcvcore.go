@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -172,9 +173,9 @@ type session struct {
 	clash  *clash.Client
 	conf   settings.Settings
 
-	mu      sync.Mutex
-	lastOK  time.Time
-	delay   time.Duration
+	mu       sync.Mutex
+	lastOK   time.Time
+	delay    time.Duration
 	probeErr string
 }
 
@@ -247,6 +248,7 @@ func start(fd int, settingsJSON, dataDir string) (*session, error) {
 		cancel()
 		return nil, fmt.Errorf("config sing-box: %w", err)
 	}
+	opts.Log = &option.LogOptions{Level: "info"} // the app adds its own timestamps
 	ctx = service.ContextWith[adapter.PlatformInterface](ctx, &platform{p: p, tunFd: fd})
 	instance, err := box.New(box.Options{Context: ctx, Options: opts, PlatformLogWriter: logWriter{}})
 	if err != nil {
@@ -425,14 +427,27 @@ func randomHex(n int) string {
 // logWriter forwards sing-box's log to the app's log, dropping debug noise.
 type logWriter struct{}
 
+// ansiColor matches the colour codes sing-box always puts in platform log
+// lines (its LogOptions.DisableColor does not apply to them).
+var ansiColor = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// logNoise are per-connection / per-query lines that would flood the
+// 400-line buffer; "closed" lines are routine when the network changes.
+var logNoise = []string{
+	"inbound connection", "outbound connection", "inbound packet", "inbound DNS packet",
+	"search process", "found user id", "found package",
+	"dns: cached", "dns: exchanged", "lookup succeed",
+	"connection download closed", "connection upload closed",
+}
+
 func (logWriter) WriteMessage(level log.Level, message string) {
 	if level > log.LevelInfo {
 		return
 	}
-	// Per-connection lines ("inbound/tun[tun-in]: inbound connection ...")
-	// would flood the 400-line buffer.
-	if level == log.LevelInfo && strings.Contains(message, "connection") {
-		return
+	for _, noise := range logNoise {
+		if strings.Contains(message, noise) {
+			return
+		}
 	}
-	logf("%s", message)
+	logf("%s", ansiColor.ReplaceAllString(message, ""))
 }

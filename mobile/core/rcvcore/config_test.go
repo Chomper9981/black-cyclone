@@ -24,8 +24,9 @@ import (
 
 type fakePlatform struct{}
 
-func (fakePlatform) Protect(int32) bool  { return true }
-func (fakePlatform) Interfaces() string { return "[]" }
+func (fakePlatform) Protect(int32) bool                                        { return true }
+func (fakePlatform) Interfaces() string                                        { return "[]" }
+func (fakePlatform) ConnectionOwner(int32, string, int32, string, int32) int32 { return -1 }
 
 // TestConfigsLoad builds the configs the app produces and lets sing-box parse
 // and construct them, which fails if a needed feature is not compiled in.

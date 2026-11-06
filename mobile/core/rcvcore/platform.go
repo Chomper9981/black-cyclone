@@ -27,6 +27,11 @@ type Platform interface {
 	// netInterface. Go's net.Interfaces needs netlink calls that Android 11+
 	// refuses to apps, so the list comes from the Java side.
 	Interfaces() string
+	// ConnectionOwner returns the UID owning a connection
+	// (ConnectivityManager.getConnectionOwnerUid), or -1 if unknown. sing-box
+	// always looks up connection owners on Android; its own way (netlink) is
+	// refused to apps.
+	ConnectionOwner(protocol int32, srcIP string, srcPort int32, dstIP string, dstPort int32) int32
 }
 
 // netInterface is one entry of Platform.Interfaces.
@@ -193,28 +198,32 @@ func (w *platform) RequestPermissionForWIFIState() error     { return nil }
 func (w *platform) ReadWIFIState(context.Context) adapter.WIFIState {
 	return adapter.WIFIState{}
 }
-func (w *platform) UsePlatformConnectionOwnerFinder() bool { return false }
-func (w *platform) FindConnectionOwner(*adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
-	return nil, os.ErrInvalid
+func (w *platform) UsePlatformConnectionOwnerFinder() bool { return true }
+func (w *platform) FindConnectionOwner(r *adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
+	uid := w.p.ConnectionOwner(r.IpProtocol, r.SourceAddress, r.SourcePort, r.DestinationAddress, r.DestinationPort)
+	if uid < 0 {
+		return nil, os.ErrNotExist
+	}
+	return &adapter.ConnectionOwner{UserId: uid}, nil
 }
-func (w *platform) UsePlatformWIFIMonitor() bool                       { return false }
-func (w *platform) UsePlatformNotification() bool                      { return false }
-func (w *platform) SendNotification(*adapter.Notification) error       { return nil }
-func (w *platform) CancelNotification(string, int32) error             { return nil }
-func (w *platform) MyInterfaceAddress() []netip.Addr                   { return w.myAddrs }
-func (w *platform) UsePlatformNeighborResolver() bool                  { return false }
+func (w *platform) UsePlatformWIFIMonitor() bool                              { return false }
+func (w *platform) UsePlatformNotification() bool                             { return false }
+func (w *platform) SendNotification(*adapter.Notification) error              { return nil }
+func (w *platform) CancelNotification(string, int32) error                    { return nil }
+func (w *platform) MyInterfaceAddress() []netip.Addr                          { return w.myAddrs }
+func (w *platform) UsePlatformNeighborResolver() bool                         { return false }
 func (w *platform) StartNeighborMonitor(adapter.NeighborUpdateListener) error { return os.ErrInvalid }
 func (w *platform) CloseNeighborMonitor(adapter.NeighborUpdateListener) error { return nil }
-func (w *platform) UsePlatformShell() bool                             { return false }
-func (w *platform) CheckPlatformShell() error                          { return os.ErrInvalid }
+func (w *platform) UsePlatformShell() bool                                    { return false }
+func (w *platform) CheckPlatformShell() error                                 { return os.ErrInvalid }
 func (w *platform) OpenShellSession(*adapter.PlatformUser, string, []string, string, int32, int32) (adapter.ShellSession, error) {
 	return nil, os.ErrInvalid
 }
 func (w *platform) LookupUser(string) (*adapter.PlatformUser, error) { return nil, os.ErrInvalid }
-func (w *platform) LookupSFTPServer() (string, error)                 { return "", os.ErrInvalid }
-func (w *platform) ReadSystemSSHHostKey() ([]byte, error)             { return nil, os.ErrInvalid }
-func (w *platform) TailscaleHostname() string                         { return "" }
-func (w *platform) UsePlatformBridge() bool                           { return false }
+func (w *platform) LookupSFTPServer() (string, error)                { return "", os.ErrInvalid }
+func (w *platform) ReadSystemSSHHostKey() ([]byte, error)            { return nil, os.ErrInvalid }
+func (w *platform) TailscaleHostname() string                        { return "" }
+func (w *platform) UsePlatformBridge() bool                          { return false }
 func (w *platform) CreateBridge(adapter.BridgeOptions) (adapter.BridgeSession, error) {
 	return nil, os.ErrInvalid
 }

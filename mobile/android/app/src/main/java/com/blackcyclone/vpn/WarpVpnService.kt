@@ -12,6 +12,7 @@ import android.net.IpPrefix
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -34,6 +35,7 @@ import rcvcore.Rcvcore
 import java.io.File
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.NetworkInterface
 
 /**
@@ -53,6 +55,8 @@ class WarpVpnService : VpnService() {
     private val platform = object : Platform {
         override fun protect(fd: Int): Boolean = this@WarpVpnService.protect(fd)
         override fun interfaces(): String = networkInterfacesJson()
+        override fun connectionOwner(protocol: Int, srcIP: String, srcPort: Int, dstIP: String, dstPort: Int): Int =
+            connectionOwnerUid(protocol, srcIP, srcPort, dstIP, dstPort)
     }
 
     override fun onCreate() {
@@ -315,25 +319,49 @@ class WarpVpnService : VpnService() {
 
     /* ---------------- Network for sing-box ---------------- */
 
+    /**
+     * Follows the best physical network (Wi-Fi, mobile data, …), never a VPN: sing-box sends
+     * its traffic out through it. The plain default-network callback can report our own TUN.
+     */
     private fun registerNetworkCallback() {
         if (networkCallback != null) return
         val cm = getSystemService(ConnectivityManager::class.java)
         val cb = object : ConnectivityManager.NetworkCallback() {
+            private var current: Network? = null
+
             override fun onAvailable(network: Network) {
+                current = network
                 setUnderlyingNetworks(arrayOf(network))
                 reportNetwork(cm, network)
             }
 
-            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) = reportNetwork(cm, network)
+            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) {
+                if (network == current) reportNetwork(cm, network)
+            }
 
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = reportNetwork(cm, network)
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                if (network == current) reportNetwork(cm, network)
+            }
 
             override fun onLost(network: Network) {
+                if (network != current) return
+                current = null
                 setUnderlyingNetworks(null)
                 Rcvcore.setDefaultInterface("", -1, false)
             }
         }
-        cm.registerDefaultNetworkCallback(cb)
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            cm.registerBestMatchingNetworkCallback(request, cb, android.os.Handler(mainLooper))
+        } else {
+            // Matches the network that satisfies the default request (usually Wi-Fi); does not
+            // bring up mobile data while Wi-Fi is connected.
+            cm.requestNetwork(request, cb)
+        }
         networkCallback = cb
     }
 
@@ -342,19 +370,44 @@ class WarpVpnService : VpnService() {
         networkCallback = null
     }
 
-    /** Reports the current default network right away, before the callback's first event. */
+    /** Reports the current physical network right away, before the callback's first event. */
     private fun reportDefaultNetwork() {
         val cm = getSystemService(ConnectivityManager::class.java)
-        val n = cm.activeNetwork
+        val n = cm.activeNetwork?.takeIf { !isVpn(cm, it) } ?: physicalNetwork(cm)
         if (n == null) Rcvcore.setDefaultInterface("", -1, false) else reportNetwork(cm, n)
     }
 
+    private fun isVpn(cm: ConnectivityManager, n: Network): Boolean =
+        cm.getNetworkCapabilities(n)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) != false
+
+    /** A connected non-VPN network with Internet, validated ones first. */
+    @Suppress("DEPRECATION") // allNetworks: only for this one-off lookup
+    private fun physicalNetwork(cm: ConnectivityManager): Network? =
+        cm.allNetworks
+            .mapNotNull { n -> cm.getNetworkCapabilities(n)?.let { n to it } }
+            .filter { (_, c) -> !c.hasTransport(NetworkCapabilities.TRANSPORT_VPN) && c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) }
+            .sortedByDescending { (_, c) -> c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) }
+            .firstOrNull()?.first
+
     private fun reportNetwork(cm: ConnectivityManager, network: Network) {
+        if (isVpn(cm, network)) return
         val name = cm.getLinkProperties(network)?.interfaceName ?: return
         val index = runCatching { NetworkInterface.getByName(name)?.index }.getOrNull() ?: return
         val caps = cm.getNetworkCapabilities(network)
         val metered = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false
         Rcvcore.setDefaultInterface(name, index, metered)
+    }
+
+    /** UID of the app owning a connection, -1 if unknown (Android 10+). */
+    private fun connectionOwnerUid(protocol: Int, srcIP: String, srcPort: Int, dstIP: String, dstPort: Int): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return -1
+        return runCatching {
+            getSystemService(ConnectivityManager::class.java).getConnectionOwnerUid(
+                protocol,
+                InetSocketAddress(InetAddress.getByName(srcIP), srcPort),
+                InetSocketAddress(InetAddress.getByName(dstIP), dstPort),
+            )
+        }.getOrDefault(-1)
     }
 
     /** The device's networks as JSON for the core (see rcvcore.netInterface). */

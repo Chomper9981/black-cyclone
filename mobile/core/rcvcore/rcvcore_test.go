@@ -42,3 +42,10 @@ func TestRoutesExcludingNothing(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestLogColorStripped(t *testing.T) {
+	got := ansiColor.ReplaceAllString("\x1b[36mINFO\x1b[0m[0001] [\x1b[38;5;227m855965700\x1b[0m 0ms] x", "")
+	if got != "INFO[0001] [855965700 0ms] x" {
+		t.Fatalf("got %q", got)
+	}
+}
