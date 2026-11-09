@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"black-cyclone/internal/share"
+	"black-cyclone/server"
 )
 
 func TestParseOverview(t *testing.T) {
@@ -145,11 +146,13 @@ func TestLive(t *testing.T) {
 		" && printf 'PermitRootLogin yes\\nPasswordAuthentication yes\\n' > /etc/ssh/sshd_config.d/00-test.conf" +
 		" && systemctl restart ssh")
 
-	script, sum := Script(mustRead(t, filepath.Join(repo, "server", "bcserver.sh")))
+	script, sum := Script(server.Script)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
 	sudoHost := Host{Addr: "127.0.0.1", Port: 2223, User: "ubuntu", KeyFile: keyFile}
+	// The same key given as content (Android) must work too.
+	pemHost := Host{Addr: "127.0.0.1", Port: 2223, User: "ubuntu", KeyPEM: string(mustRead(t, keyFile))}
 	rootHost := Host{Addr: "127.0.0.1", Port: 2223, User: "root", Password: rootPW}
 
 	// Wrong password.
@@ -159,6 +162,7 @@ func TestLive(t *testing.T) {
 		t.Fatalf("wrong password: %v", err)
 	}
 
+	dial(t, ctx, &pemHost).Close()
 	c := dial(t, ctx, &sudoHost)
 	if sudoHost.HostKey == "" {
 		t.Fatal("host key not pinned")

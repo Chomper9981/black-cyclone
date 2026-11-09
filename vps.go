@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -15,15 +14,12 @@ import (
 
 	"black-cyclone/internal/settings"
 	"black-cyclone/internal/vps"
+	"black-cyclone/server"
 )
 
 // The server script ships inside the app, so "Cài đặt / cập nhật" always
 // installs the version that matches this build.
-//
-//go:embed server/bcserver.sh
-var bcserverRaw []byte
-
-var bcserverScript, bcserverSum = vps.Script(bcserverRaw)
+var bcserverScript, bcserverSum = vps.Script(server.Script)
 
 // vpsMu serialises access to vps.json and to each VPS (one operation at a time).
 var (

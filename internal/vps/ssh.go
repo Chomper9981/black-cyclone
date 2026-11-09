@@ -35,6 +35,9 @@ type Host struct {
 	// the key is encrypted. Either way it is also given to sudo when User is not root.
 	Password string `json:"password,omitempty"`
 	KeyFile  string `json:"key_file,omitempty"`
+	// KeyPEM is the private key itself, used instead of KeyFile where the app
+	// cannot keep a path (Android stores the key encrypted).
+	KeyPEM string `json:"key_pem,omitempty"`
 	// HostKey pins the server's SSH key (authorized_keys format) on first contact,
 	// so a later man-in-the-middle cannot pose as the VPS.
 	HostKey string `json:"host_key,omitempty"`
@@ -114,10 +117,13 @@ func Dial(ctx context.Context, h *Host) (*Client, error) {
 }
 
 func authMethods(h *Host) ([]ssh.AuthMethod, error) {
-	if h.KeyFile != "" {
-		pem, err := os.ReadFile(h.KeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("không đọc được file khoá: %w", err)
+	if h.KeyFile != "" || h.KeyPEM != "" {
+		pem := []byte(h.KeyPEM)
+		if len(pem) == 0 {
+			var err error
+			if pem, err = os.ReadFile(h.KeyFile); err != nil {
+				return nil, fmt.Errorf("không đọc được file khoá: %w", err)
+			}
 		}
 		signer, err := ssh.ParsePrivateKey(pem)
 		var missing *ssh.PassphraseMissingError
