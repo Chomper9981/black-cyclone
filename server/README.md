@@ -63,7 +63,11 @@ Script tìm IP công khai của VPS bằng `api.ipify.org`, dự phòng `icanhaz
 
 ## 3. Quản lý
 
-SSH vào VPS rồi dùng `bcserver` (thêm `sudo` nếu không phải root):
+**Trong app (bản desktop):** tab **VPS** → **Thêm VPS**, nhập IP, user và mật khẩu (hoặc file khoá SSH). App đăng nhập SSH để cài server, thêm / xoá người dùng, copy link, xem log, khởi động lại, cập nhật hoặc gỡ server. Không cần chạy `deploy.ps1` hay mở terminal. Thông tin SSH được mã hoá trong `vps.json` cạnh `settings.json` và chỉ nằm trên máy này. Lần đầu kết nối, app ghi nhớ khoá SSH của VPS; nếu khoá đổi, app từ chối kết nối.
+
+Ai đăng nhập SSH được thì là người quản lý. Người dùng chỉ có link `vless://` của họ: link đó không mở được SSH nên không quản lý được gì.
+
+**Bằng dòng lệnh:** SSH vào VPS rồi dùng `bcserver` (thêm `sudo` nếu không phải root):
 
 ```sh
 bcserver add laptop-me      # thêm người dùng, in link của người đó
