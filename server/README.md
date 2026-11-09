@@ -53,7 +53,7 @@ Không muốn dùng script deploy thì chép `bcserver.sh` lên VPS rồi chạy
 
 1. Tải sing-box bản cố định, kiểm SHA-256, đặt vào `/opt/blackcyclone/`.
 2. Tạo khoá Reality, short id và người dùng đầu tiên, lưu ở `/etc/blackcyclone/` (chỉ root đọc được).
-3. Chạy server thành service systemd `blackcyclone` dưới user riêng không có quyền root, chỉ được mở cổng thấp. Service tự khởi động cùng VPS và tự chạy lại nếu bị lỗi.
+3. Chạy server thành service systemd `blackcyclone` dưới user riêng không có quyền root, chỉ được mở cổng thấp và gắn dấu kết nối để đếm lưu lượng. Service tự khởi động cùng VPS và tự chạy lại nếu bị lỗi.
 4. Bật **TCP BBR**: tốc độ ổn định hơn nhiều trên đường truyền xa, hay rớt gói (Việt Nam ↔ nước ngoài).
 5. Mở cổng trên tường lửa của VPS (ufw, firewalld, hoặc iptables như ảnh Ubuntu của Oracle Cloud).
 6. Chặn client đi vào mạng nội bộ của VPS (`10.x`, `192.168.x`, metadata của nhà cung cấp…).
@@ -75,10 +75,14 @@ bcserver list               # liệt kê người dùng
 bcserver link               # in lại link của mọi người (bcserver link laptop-me: chỉ một người)
 bcserver remove laptop-me   # xoá: link của người đó hết hiệu lực ngay
 bcserver status             # trạng thái, địa chỉ, số người dùng
+bcserver traffic            # lưu lượng từng người: tên, byte lên, byte xuống (--reset: đặt lại)
+bcserver online             # kết nối đang mở (JSON của Clash API, chỉ nghe ở 127.0.0.1)
 bcserver logs -f            # xem log
 bcserver restart
 bcserver uninstall          # gỡ hoàn toàn
 ```
+
+**Thống kê lưu lượng:** mỗi người dùng đi ra Internet qua một outbound riêng có đánh dấu (`routing_mark`), và `iptables` đếm byte theo dấu đó (chain `BC_OUT` / `BC_IN`). Bộ đếm được cộng dồn vào `/etc/blackcyclone/traffic` mỗi khi server dừng hoặc khởi động, nên không mất khi khởi động lại. Vì cần gắn dấu, service có thêm quyền `CAP_NET_ADMIN`. Không có `iptables` thì server vẫn chạy, chỉ không có thống kê.
 
 Nên tạo **một tên cho mỗi người / thiết bị**. Khi lộ link hay muốn cắt quyền ai, chỉ cần `remove` đúng tên đó, những người khác không bị ảnh hưởng.
 
