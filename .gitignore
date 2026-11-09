@@ -25,3 +25,5 @@ bin/
 .DS_Store
 Thumbs.db
 desktop.ini
+# Wails downloads the WebView2 bootstrapper here when building the installer
+build/windows/installer/tmp/
