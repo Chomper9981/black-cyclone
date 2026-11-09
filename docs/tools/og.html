@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Social preview image (docs/assets/og.png, 1200x630). Render with a headless browser:
+     msedge --headless --window-size=1200,630 --screenshot=docs/assets/og.png docs/tools/og.html -->
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background: #0d0e10; color: #ececee;
+    font-family: "Be Vietnam Pro", system-ui, sans-serif;
+    display: grid; grid-template-columns: 600px 600px; align-items: center;
+  }
+  .copy { padding-left: 72px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 22px; color: #8e9198; }
+  .brand img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: #000; }
+  .brand b { color: #ff6f6b; font-weight: 800; }
+  h1 { font-size: 58px; line-height: 1.06; letter-spacing: -.025em; margin: 30px 0 22px; font-weight: 800; }
+  h1 em { font-style: normal; color: #ff6f6b; }
+  p { margin: 0; font-size: 21px; color: #8e9198; font-weight: 500; }
+  .stage { position: relative; height: 630px; perspective: 1600px; }
+  .win {
+    position: absolute; width: 300px; border-radius: 12px; overflow: hidden;
+    background: #121315; border: 1px solid #34363c;
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8);
+  }
+  .bar { height: 26px; background: #1b1c1f; border-bottom: 1px solid #26282d; }
+  .win img { display: block; width: 100%; }
+  .back { top: 80px; left: 60px; transform: translateZ(-160px) rotateY(-16deg) rotateX(5deg); filter: brightness(.55); }
+  .front { top: 40px; left: 230px; transform: rotateY(-16deg) rotateX(5deg); }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="brand"><img src="../assets/logo.svg" alt="">Black <b>Cyclone</b></div>
+    <h1>Dữ liệu của bạn<br>đi qua <em>máy chủ<br>của bạn</em>.</h1>
+    <p>Tự dựng và quản lý VPS · mã nguồn mở<br>Windows · Linux · Android</p>
+  </div>
+  <div class="stage">
+    <div class="win back"><div class="bar"></div><img src="../assets/screens/vps.png" alt=""></div>
+    <div class="win front"><div class="bar"></div><img src="../assets/screens/conn.png" alt=""></div>
+  </div>
+</body>
+</html>
