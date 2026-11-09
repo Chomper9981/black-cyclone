@@ -21,6 +21,7 @@ Khác biệt duy nhất nằm ở cách mở card mạng ảo. App tạo TUN b�
 
 - **WARP:** đăng ký miễn phí ngay trong app, nhập key WARP+, xuất / nhập tài khoản (JSON giống `settings.Warp` của desktop), quét endpoint bằng handshake WireGuard thật.
 - **Server riêng:** dán một hoặc nhiều link (ví dụ link do `bcserver` in ra), chọn server hoặc **Tự động** (server có độ trễ thấp nhất). Đổi server khi đang kết nối không làm rớt VPN. Link được mã hoá bằng Android Keystore như tài khoản WARP.
+- **VPS:** cài và quản lý server riêng trên VPS qua SSH, giống tab VPS của bản máy tính (cùng code Go `internal/vps`): cài / cập nhật / gỡ server, thêm / xoá người dùng, sao chép link, mã QR, “+ app” để thêm link vào máy này, xem log, khởi động lại, lưu lượng và ai đang online. Đăng nhập bằng mật khẩu hoặc file khoá SSH; thông tin SSH được mã hoá bằng Android Keystore. Ai có đăng nhập SSH là người quản lý, người dùng chỉ có link.
 - Việt Nam đi thẳng (trang `.vn`, IP Việt Nam), bỏ qua mạng LAN, chia tuyến theo ứng dụng (loại trừ app / chỉ app đã chọn).
 - Kiểm tra kết nối thật: cứ 20 giây lõi gửi một yêu cầu HTTPS qua đường hầm, đo độ trễ và cảnh báo nếu không thông.
 - Tự kết nối lại, tự chuyển mạng khi đổi Wi-Fi ↔ 4G, ô Cài đặt nhanh, hỗ trợ Always-on VPN.
