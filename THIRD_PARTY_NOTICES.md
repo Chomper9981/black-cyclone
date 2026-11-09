@@ -92,6 +92,7 @@ complete license texts, generated from the exact module versions used, are in
 | github.com/wailsapp/wails/v2 | MIT |
 | github.com/wailsapp/go-webview2 | MIT |
 | github.com/energye/systray | Apache-2.0 |
+| github.com/skip2/go-qrcode | MIT |
 | github.com/tkrajina/go-reflector | Apache-2.0 |
 | github.com/godbus/dbus/v5 | BSD-2-Clause |
 | github.com/google/uuid | BSD-3-Clause |

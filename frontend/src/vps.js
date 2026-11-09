@@ -13,6 +13,7 @@ import {
     VPSRestart,
     VPSLogs,
     VPSUninstall,
+    VPSLinkQR,
 } from '../wailsjs/go/main/App';
 import {EventsOn, ClipboardSetText} from '../wailsjs/runtime/runtime';
 
@@ -36,6 +37,7 @@ let editing = null;             // id of the VPS whose details the form is editi
 const armed = new Map();
 let outLines = [];
 let outFor = null;
+let qr = null;                  // {id, name, src} QR shown under a user
 let app = null;                // hooks from main.js
 
 const el = {};
@@ -151,11 +153,18 @@ function renderDetail() {
                 `<span class="srv-main"><span class="srv-name">${esc(u.name)}</span>` +
                 `<span class="srv-meta">${has ? '<span class="in-app">đã có trong app</span>' : 'link riêng của người này'}</span></span>` +
                 '<span class="srv-acts">' +
+                `<button type="button" class="icon${qr && qr.id === h.id && qr.name === u.name ? ' on' : ''}" data-act="qr" data-name="${esc(u.name)}" title="Hiện mã QR để điện thoại quét">QR</button>` +
                 `<button type="button" class="icon" data-act="copy" data-name="${esc(u.name)}" title="Copy link để gửi cho người này">copy</button>` +
                 (has ? '' : `<button type="button" class="icon" data-act="import" data-name="${esc(u.name)}" title="Thêm link này vào danh sách server của app trên máy này">+ app</button>`) +
                 (last ? '' : `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="user-del" data-name="${esc(u.name)}" ` +
                     `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá người dùng: link của họ hết dùng được ngay'}" aria-label="Xoá"${op ? ' disabled' : ''}>${delArmed ? 'xoá?' : '✕'}</button>`) +
                 '</span></div>';
+            if (qr && qr.id === h.id && qr.name === u.name) {
+                html += '<div class="qr-box">' +
+                    `<img src="${esc(qr.src)}" alt="Mã QR link của ${esc(u.name)}" width="220" height="220">` +
+                    `<p class="hint">Trên điện thoại của <b>${esc(u.name)}</b>: quét bằng camera hoặc Google Lens, copy link rồi dán vào Black Cyclone → Server riêng. ` +
+                    'Mã QR chứa link đầy đủ: ai chụp được nó cũng dùng được server.</p></div>';
+            }
         }
         html += '</div>';
         html += '<div class="row">' +
@@ -402,6 +411,16 @@ async function onDetailClick(ev) {
     const name = b.dataset.name;
     const user = currentUsers().find((u) => u.name === name);
     switch (act) {
+    case 'qr':
+        if (!user) return;
+        if (qr && qr.id === selected && qr.name === name) { qr = null; render(); return; }
+        try {
+            qr = {id: selected, name, src: await VPSLinkQR(user.link)};
+        } catch (e) {
+            setMsg(el.detailMsg, 'Không tạo được mã QR: ' + errText(e), true);
+        }
+        render();
+        return;
     case 'copy':
         if (!user) return;
         try {
@@ -436,6 +455,7 @@ async function onDetailClick(ev) {
         const key = 'user:' + name;
         if (!armed.has(key)) { arm(key); return; }
         disarm(key);
+        if (qr && qr.name === name) qr = null;
         run('user-del', (id) => VPSRemoveUser(id, name), `Đã xoá ${name}: link của người này hết dùng được.`);
         return;
     }

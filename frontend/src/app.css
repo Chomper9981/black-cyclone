@@ -422,3 +422,7 @@ body[data-os="linux"] .help-text p.os-win + p.os-linux { margin-top: 0; }
     padding: 8px 10px; font: 11px/1.45 Consolas, "Cascadia Mono", monospace;
     white-space: pre-wrap; word-break: break-all; user-select: text;
 }
+.icon.on { color: var(--text); background: var(--surface); border-color: var(--line); }
+.qr-box { display: flex; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.qr-box img { flex: none; width: 140px; height: 140px; border-radius: 6px; background: #fff; image-rendering: pixelated; }
+.qr-box .hint { margin: 0; line-height: 1.5; }

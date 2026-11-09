@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"black-cyclone/internal/settings"
@@ -353,4 +355,17 @@ func (a *App) VPSUninstall(id string) (o vps.Overview, err error) {
 		return err
 	})
 	return o, err
+}
+
+// VPSLinkQR renders a share link as a QR code (PNG data URL) so a phone can
+// scan it instead of receiving the link through a chat app.
+func (a *App) VPSLinkQR(link string) (string, error) {
+	if !strings.HasPrefix(link, "vless://") || len(link) > 2048 {
+		return "", errors.New("link không hợp lệ")
+	}
+	png, err := qrcode.Encode(link, qrcode.Medium, 512)
+	if err != nil {
+		return "", err
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
 }

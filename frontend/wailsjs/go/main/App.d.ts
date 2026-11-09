@@ -64,6 +64,8 @@ export function VPSAddUser(arg1:string,arg2:string):Promise<vps.Overview>;
 
 export function VPSInstall(arg1:string,arg2:vps.InstallOptions):Promise<vps.Overview>;
 
+export function VPSLinkQR(arg1:string):Promise<string>;
+
 export function VPSLogs(arg1:string):Promise<string>;
 
 export function VPSOverview(arg1:string):Promise<vps.Overview>;

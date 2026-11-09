@@ -122,6 +122,10 @@ export function VPSInstall(arg1, arg2) {
   return window['go']['main']['App']['VPSInstall'](arg1, arg2);
 }
 
+export function VPSLinkQR(arg1) {
+  return window['go']['main']['App']['VPSLinkQR'](arg1);
+}
+
 export function VPSLogs(arg1) {
   return window['go']['main']['App']['VPSLogs'](arg1);
 }
