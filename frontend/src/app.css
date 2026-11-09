@@ -397,6 +397,7 @@ body[data-os="linux"] .help-text p.os-win + p.os-linux { margin-top: 0; }
 .seg label:has(input:focus-visible) span { outline: 2px solid var(--accent); outline-offset: 1px; }
 .vps-grid { grid-template-columns: auto 1fr auto auto; }
 .vps-grid code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.vps-grid code.wide { grid-column: span 3; } /* address and SNI get a full row: never cut */
 .state { font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
 .state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .state.on { color: #66bb6a; }

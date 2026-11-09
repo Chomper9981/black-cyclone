@@ -4,15 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Black Cyclone · Your connection, your server</title>
-  <meta name="description" content="Black Cyclone: an open-source app for Windows, Linux and Android. Set up your own server on a VPS you control with one command, with no middleman.">
+  <meta name="description" content="Black Cyclone: an open-source app for Windows, Linux and Android. Set up and manage your own server on a VPS you control, right from the app, with no middleman.">
   <link rel="alternate" hreflang="vi" href="../">
   <link rel="alternate" hreflang="en" href="./">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Black Cyclone · Your connection, your server">
+  <meta property="og:description" content="Open-source app for Windows, Linux and Android: set up and manage your own server on a VPS you control, with no middleman.">
+  <meta property="og:url" content="https://chomper9981.github.io/black-cyclone/en/">
+  <meta property="og:image" content="https://chomper9981.github.io/black-cyclone/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
   <script src="../lang.js" defer></script>
+  <script src="../deck.js" defer></script>
 </head>
 <body>
 
@@ -25,6 +35,7 @@
     <nav class="nav-links">
       <a href="#ownership">Ownership</a>
       <a href="#how-it-works">How it works</a>
+      <a href="#server-manager">Server</a>
       <a href="#transparency">Transparency</a>
       <a href="../index.html" class="lang" hreflang="vi" lang="vi" aria-label="Chuyển sang tiếng Việt"><span>VI</span><span class="on">EN</span></a>
       <a href="#download" class="btn btn-sm">Download</a>
@@ -41,7 +52,7 @@
         <p class="eyebrow"><span class="dot"></span> Open source · MIT / GPL-3.0</p>
         <h1>Your data goes<br>through <em>your own server</em>.</h1>
         <p class="lead">
-          Black Cyclone turns a cheap VPS into your own private server with a single command.
+          Black Cyclone turns a cheap VPS into your own private server, right from the app, in a few clicks.
           No VPN company in the middle, nobody else keeping logs.
           You hold the keys and stay in full control.
         </p>
@@ -54,8 +65,23 @@
         </ul>
       </div>
       <div class="hero-visual">
-        <div class="placeholder ph-app" data-label="App screenshot · 3:4">
-          <span>Illustration<br><small>The app while connected</small></span>
+        <div class="deck" role="region" aria-roledescription="carousel" aria-label="App screenshots">
+          <div class="deck-stage">
+          <figure class="shot" data-i="0" data-pos="0">
+            <div class="win"><div class="win-bar" aria-hidden="true"><span class="win-title">Black Cyclone</span><span class="win-ctl">─ ▢ ✕</span></div>
+              <img src="../assets/screens/conn.png" width="880" height="1440" alt="Connect screen: connected through the Singapore server, speed and traffic right below the button"></div>
+          </figure>
+          <figure class="shot" data-i="1" data-pos="1">
+            <div class="win"><div class="win-bar" aria-hidden="true"><span class="win-title">Black Cyclone</span><span class="win-ctl">─ ▢ ✕</span></div>
+              <img src="../assets/screens/vps.png" width="880" height="1440" loading="lazy" alt="VPS tab: server running, three users with their traffic and online state"></div>
+          </figure>
+          <figure class="shot" data-i="2" data-pos="2">
+            <div class="win"><div class="win-bar" aria-hidden="true"><span class="win-title">Black Cyclone</span><span class="win-ctl">─ ▢ ✕</span></div>
+              <img src="../assets/screens/route.png" width="880" height="1440" loading="lazy" alt="Routing tab: Vietnamese sites, some domains and apps go direct, outside the VPN"></div>
+          </figure>
+          </div>
+          <div class="deck-tabs"><button type="button" data-i="0" aria-pressed="true">Connect</button><button type="button" data-i="1" aria-pressed="false">VPS manager</button><button type="button" data-i="2" aria-pressed="false">Routing</button></div>
+          <p class="shots-note">Screenshots show the app in Vietnamese; an English interface is not available yet.</p>
         </div>
       </div>
     </div>
@@ -74,7 +100,7 @@
       <div class="cards">
         <article class="card">
           <div class="card-head"><span class="card-icon" aria-hidden="true">◎</span><h3>The server is yours</h3></div>
-          <p>Rent a VPS from any provider you like and run one command to set it up. Reality keys are generated on the VPS and readable only by root.</p>
+          <p>Rent a VPS from any provider you like and install the server from the app. Reality keys are generated on the VPS and readable only by root.</p>
         </article>
         <article class="card">
           <div class="card-head"><span class="card-icon" aria-hidden="true">⌁</span><h3>No middleman</h3></div>
@@ -106,8 +132,8 @@
         </li>
         <li>
           <span class="step-n">02</span>
-          <h3>Run one command</h3>
-          <p>The script installs sing-box with VLESS + Reality, enables BBR, opens the firewall and prints your connection link.</p>
+          <h3>Click Install</h3>
+          <p>In the VPS tab, enter your VPS's IP and password and click <b>Install</b>. The app installs sing-box with VLESS + Reality, enables BBR, opens the firewall and creates your link. Prefer the terminal? Run:</p>
           <pre class="code"><code><span class="c">$</span> server/deploy.sh root@203.0.113.10</code></pre>
         </li>
         <li>
@@ -121,6 +147,33 @@
         <div class="diagram-scroll"><img src="../assets/diagram-en.svg" width="1000" height="420" loading="lazy"
              alt="Diagram: your device connects, encrypted, through the ISP to your own VPS, which exits to the Internet; local sites and LAN go direct"></div>
         <figcaption>Traffic travels in an encrypted tunnel to a VPS you run yourself. Your ISP sees only an ordinary HTTPS connection, while local sites go direct.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- SERVER MANAGEMENT -->
+  <section id="server-manager" class="section">
+    <div class="wrap manage">
+      <div class="manage-copy">
+        <p class="kicker">Server management</p>
+        <h2>Your whole server, in one tab.</h2>
+        <p class="section-lead">
+          No SSH sessions, no commands to remember. The app logs in over SSH to do the work
+          and opens no extra ports on your VPS.
+        </p>
+        <ul class="feature-list">
+          <li><b>Install, update and remove the server with one click.</b> Progress shows live in the app.</li>
+          <li><b>A personal link for everyone.</b> Add, remove, copy or show it as a QR code. Remove someone and their link stops working at once.</li>
+          <li><b>Traffic and who is online.</b> The app warns when one link is used from several IPs at once, a sign it was shared.</li>
+          <li><b>Admins and users kept apart.</b> Only whoever holds the SSH login manages the server; users just have a link and cannot reach anything else.</li>
+          <li><b>SSH details encrypted on your device.</b> The app remembers your VPS's SSH key and refuses to connect if it changes.</li>
+          <li><b>On Windows, Linux and Android.</b></li>
+        </ul>
+      </div>
+      <figure class="frame tilt-right">
+        <div class="win"><div class="win-bar" aria-hidden="true"><span class="win-title">Black Cyclone</span><span class="win-ctl">─ ▢ ✕</span></div>
+          <img src="../assets/screens/vps.png" width="880" height="1440" loading="lazy"
+               alt="VPS tab: the Singapore server running, three users, two of them online, with each user's traffic"></div>
       </figure>
     </div>
   </section>
@@ -174,9 +227,10 @@
         <h3>Cloudflare WARP</h3>
         <p>Register for free WARP right inside the app and scan for the fastest endpoint. Handy before you have a VPS, but in this mode your traffic goes through Cloudflare.</p>
       </div>
-      <div class="placeholder ph-mode" data-label="Screenshot · 4:3">
-        <span>Illustration<br><small>Mode selection / split routing screen</small></span>
-      </div>
+      <figure class="frame tilt-left mode-shot">
+        <div class="win"><div class="win-bar" aria-hidden="true"><span class="win-title">Black Cyclone</span><span class="win-ctl">─ ▢ ✕</span></div>
+          <img src="../assets/screens/servers.png" width="880" height="1120" loading="lazy" alt="Own server mode and the server list: Auto, Singapore 38 ms, Tokyo 71 ms, Hong Kong"></div>
+      </figure>
     </div>
   </section>
 
