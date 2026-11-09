@@ -1,11 +1,27 @@
 build/bin
 frontend/dist
 frontend/node_modules
+# Wails' cache of package.json (regenerated on every build)
+frontend/package.json.md5
 # runtime binaries (windows/fetch-bins.ps1)
 bin/
-.claude/
 # `go build .` output
 /black-cyclone
 /black-cyclone.exe
 # release packages (linux/docker-deb.ps1, release builds)
 /dist/
+# Go test binaries and coverage
+*.test
+*.out
+
+# Local tool state
+.claude/
+.impeccable/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
