@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" role="img" aria-label="Sơ đồ: thiết bị kết nối mã hoá qua nhà mạng tới VPS của bạn, VPS đi ra Internet; web Việt Nam đi thẳng" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ececee"/>
+    </marker>
+    <marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ff6f6b"/>
+    </marker>
+    <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9a9da4"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="420" rx="16" fill="#131417"/>
+
+  <!-- ISP zone -->
+  <rect x="250" y="56" width="230" height="250" rx="12" fill="none" stroke="#4a4d54" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <text x="365" y="84" text-anchor="middle" font-size="13" font-weight="600" fill="#9a9da4" letter-spacing=".5">Nhà mạng / Wi-Fi</text>
+  <text x="365" y="236" text-anchor="middle" font-size="13" fill="#9a9da4">chỉ thấy:</text>
+  <text x="365" y="256" text-anchor="middle" font-size="13" fill="#ececee">HTTPS tới microsoft.com</text>
+
+  <rect x="30" y="110" width="180" height="120" rx="12" fill="#1a1b1f" stroke="#4a4d54" stroke-width="1.5"/>
+  <text x="120.0" y="154" text-anchor="middle" font-size="16" font-weight="700" fill="#ececee">Thiết bị của bạn</text>
+  <text x="120.0" y="182" text-anchor="middle" font-size="13" fill="#9a9da4">Black Cyclone · TUN</text>
+  <text x="120.0" y="202" text-anchor="middle" font-size="13" fill="#9a9da4">kill switch</text>
+
+  <rect x="520" y="110" width="180" height="120" rx="12" fill="#1a1b1f" stroke="#ff6f6b" stroke-width="1.5"/>
+  <text x="610.0" y="154" text-anchor="middle" font-size="16" font-weight="700" fill="#ff6f6b">VPS của bạn</text>
+  <text x="610.0" y="182" text-anchor="middle" font-size="13" fill="#9a9da4">sing-box · Reality</text>
+  <text x="610.0" y="202" text-anchor="middle" font-size="13" fill="#9a9da4">khoá do bạn giữ</text>
+
+  <rect x="790" y="110" width="180" height="120" rx="12" fill="#1a1b1f" stroke="#4a4d54" stroke-width="1.5"/>
+  <text x="880.0" y="154" text-anchor="middle" font-size="16" font-weight="700" fill="#ececee">Internet</text>
+  <text x="880.0" y="182" text-anchor="middle" font-size="13" fill="#9a9da4">website thấy</text>
+  <text x="880.0" y="202" text-anchor="middle" font-size="13" fill="#9a9da4">IP của VPS</text>
+
+  <!-- device -> VPS (encrypted tunnel) -->
+  <line x1="210" y1="170" x2="516" y2="170" stroke="#ff6f6b" stroke-width="3" marker-end="url(#aha)"/>
+  <text x="365" y="158" text-anchor="middle" font-size="13" font-weight="600" fill="#ff6f6b">VLESS + Reality (mã hoá)</text>
+
+  <!-- VPS -> Internet -->
+  <line x1="700" y1="170" x2="786" y2="170" stroke="#ececee" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="745" y="158" text-anchor="middle" font-size="13" fill="#9a9da4">ra ngoài</text>
+
+  <!-- probe note under VPS -->
+  <text x="610" y="256" text-anchor="middle" font-size="12" fill="#9a9da4" font-style="italic">ai dò thử chỉ nhận về</text>
+  <text x="610" y="274" text-anchor="middle" font-size="12" fill="#9a9da4" font-style="italic">trang thật của microsoft.com</text>
+
+  <!-- direct route -->
+  <polyline points="120,230 120,360 880,360 880,234" fill="none" stroke="#9a9da4" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#ahm)"/>
+  <rect x="352.0" y="348" width="296.0" height="24" fill="#131417"/>
+  <text x="500" y="365" text-anchor="middle" font-size="13" fill="#9a9da4">Web Việt Nam, LAN: đi thẳng (chia tuyến)</text>
+</svg>
