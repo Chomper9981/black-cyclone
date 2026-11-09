@@ -25,6 +25,7 @@ import {
     Quit,
 } from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
+import {initVPS, onShowVPS, renderVPS} from './vps.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -618,6 +619,7 @@ function render() {
     renderSubs();
     renderOptions();
     renderWarnings();
+    renderVPS();
 }
 
 /* ---------------- Status & stats ---------------- */
@@ -945,6 +947,7 @@ function showTab(name) {
     });
     el.panes.forEach((p) => { p.hidden = p.dataset.pane !== name; });
     if (name === 'tools') el.log.scrollTop = el.log.scrollHeight;
+    if (name === 'vps') onShowVPS();
     try { localStorage.setItem('rcv-tab', name); } catch { /* ignore */ }
 }
 
@@ -1029,6 +1032,17 @@ document.addEventListener('click', (ev) => {
 EventsOn('log', appendLog);
 EventsOn('status', applyStatus);
 EventsOn('stats', applyStats);
+
+// The VPS tab adds its users' links to the server list through the same action
+// as the "Thêm server" box, so settings stay in sync.
+initVPS({
+    getServers: () => settings?.servers || [],
+    importLinks: async (text) => {
+        const before = settings?.servers?.length || 0;
+        const s = await runAction('add', () => AddServers(text));
+        if ((s?.servers?.length || 0) <= before) throw new Error('Link này đã có trong app.');
+    },
+});
 
 async function init() {
     let tab = 'conn';

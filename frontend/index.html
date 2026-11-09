@@ -55,6 +55,7 @@
 
     <nav class="tabs" role="tablist">
         <button class="tab" type="button" role="tab" data-tab="conn">Kết nối</button>
+        <button class="tab" type="button" role="tab" data-tab="vps">VPS</button>
         <button class="tab" type="button" role="tab" data-tab="route">Định tuyến</button>
         <button class="tab" type="button" role="tab" data-tab="app">Ứng dụng</button>
         <button class="tab" type="button" role="tab" data-tab="tools">Công cụ</button>
@@ -192,6 +193,70 @@
                 </div>
             </details>
             <div id="sub-msg" class="sub-msg" hidden></div>
+        </section>
+    </div>
+
+    <!-- ============ Tab: VPS ============ -->
+    <div class="pane" data-pane="vps" hidden>
+        <p class="tab-intro">Quản lý server riêng trên VPS của bạn: cài đặt, thêm / xoá người dùng, lấy link. App điều khiển VPS qua SSH, không mở thêm cổng nào trên VPS.</p>
+
+        <section class="block">
+            <div class="block-title row-title">
+                <span>VPS của bạn</span>
+                <button class="help" type="button" data-help="h-vps" aria-expanded="false" title="Giải thích">?</button>
+            </div>
+            <div id="h-vps" class="help-text" hidden>
+                <p><b>Quản lý và người dùng khác nhau ở chỗ nào?</b> Ai đăng nhập SSH được vào VPS (root hoặc user có sudo) thì là người quản lý. Người dùng chỉ có link <code>vless://</code>: link đó chỉ kết nối được VPN, không mở được SSH, nên không thể thêm / xoá ai hay xem log.</p>
+                <p>Thông tin đăng nhập SSH được mã hoá và chỉ lưu trên máy này. Đừng đưa mật khẩu SSH cho người dùng: gửi họ link của riêng họ là đủ.</p>
+                <p>Lần đầu kết nối, app ghi nhớ khoá SSH của VPS (fingerprint). Nếu về sau khoá đổi, app sẽ từ chối kết nối để chống giả mạo.</p>
+            </div>
+            <div id="vps-list" class="srv-list" role="radiogroup"></div>
+            <details id="vps-add-box" class="inner">
+                <summary>Thêm VPS</summary>
+                <p class="hint">Nhập thông tin nhà cung cấp VPS gửi cho bạn. App sẽ thử đăng nhập trước khi lưu.</p>
+                <label class="field"><span>Tên gợi nhớ</span>
+                    <input id="vps-name" type="text" spellcheck="false" placeholder="vd. Singapore (tuỳ chọn)"></label>
+                <div class="field-row">
+                    <label class="field grow"><span>IP hoặc tên miền</span>
+                        <input id="vps-addr" type="text" spellcheck="false" placeholder="203.0.113.10"></label>
+                    <label class="field port"><span>Cổng SSH</span>
+                        <input id="vps-port" type="number" min="1" max="65535" value="22"></label>
+                </div>
+                <label class="field"><span>User</span>
+                    <input id="vps-user" type="text" spellcheck="false" value="root"></label>
+                <div class="field">
+                    <span>Đăng nhập bằng</span>
+                    <div class="seg" role="radiogroup">
+                        <label><input type="radio" name="vps-auth" value="password" checked><span>Mật khẩu</span></label>
+                        <label><input type="radio" name="vps-auth" value="key"><span>File khoá SSH</span></label>
+                    </div>
+                </div>
+                <div id="vps-key-row" class="field" hidden>
+                    <span>File khoá (private key)</span>
+                    <div class="row tight">
+                        <input id="vps-key" type="text" spellcheck="false" placeholder="C:\Users\…\.ssh\id_ed25519">
+                        <button id="vps-key-pick" class="btn ghost sm" type="button">Chọn…</button>
+                    </div>
+                </div>
+                <label class="field"><span id="vps-pass-label">Mật khẩu</span>
+                    <input id="vps-pass" type="password" autocomplete="off"></label>
+                <div class="row end">
+                    <button id="vps-add-btn" class="btn sm" type="button">Kiểm tra &amp; lưu</button>
+                </div>
+            </details>
+            <div id="vps-msg" class="sub-msg" hidden></div>
+        </section>
+
+        <section id="vps-detail" class="block" hidden>
+            <div class="block-title row-title">
+                <span id="vps-title">Server</span>
+                <span class="row-actions">
+                    <button id="vps-refresh" class="link" type="button">làm mới</button>
+                </span>
+            </div>
+            <div id="vps-body"></div>
+            <div id="vps-detail-msg" class="sub-msg" hidden></div>
+            <pre id="vps-out" class="vps-out" hidden></pre>
         </section>
     </div>
 
