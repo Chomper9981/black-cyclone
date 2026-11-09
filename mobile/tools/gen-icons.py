@@ -1,62 +1,132 @@
-"""Generates the Android vector icons from logo/BlackCyclone.svg.
+"""Generates the Android vector icons from logo/black-cyclone-logo.svg.
 
-The logo is a VTracer trace: a black background plus red shapes (and black shapes
-that only repeat the background), so the red shapes alone are the artwork.
+The logo is drawn with circles, lines and paths inside one transformed group
+(translate + rotate). This converts those elements to VectorDrawable paths:
 
-    python tools/gen-icons.py
+    python mobile/tools/gen-icons.py
+
+Writes, under android/app/src/main/res/drawable/:
+  ic_launcher_foreground.xml   adaptive icon foreground, full colour
+  ic_launcher_monochrome.xml   themed-icon layer: the red shapes only, as a silhouette
+  ic_tile.xml                  status bar / quick settings tile: white silhouette
 """
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-LOGO = ROOT / "logo" / "BlackCyclone.svg"
-RES = ROOT / "android" / "app" / "src" / "main" / "res"
-RED = "#E00000"
+ROOT = Path(__file__).resolve().parents[2]
+LOGO = ROOT / "logo" / "black-cyclone-logo.svg"
+RES = ROOT / "mobile" / "android" / "app" / "src" / "main" / "res"
+NS = "{http://www.w3.org/2000/svg}"
 
-# Bounding box of the red artwork in logo coordinates (the eye).
-X0, Y0, X1, Y1 = 70, 185, 1525, 780
-
-
-def red_paths():
-    svg = LOGO.read_text(encoding="utf-8")
-    paths = [d for d, fill in re.findall(r'<path d="([^"]*)" fill="(#[0-9A-Fa-f]+)"', svg)
-             if fill.upper() == RED]
-    if not paths:
-        raise SystemExit(f"không thấy path màu {RED} trong {LOGO}")
-    return paths
+# The artwork is centred on (512, 512) and reaches about 345 units from it.
+CENTER = 512.0
+ART = 690.0
 
 
-def vector(size_dp, viewport, art_width, color, paths):
+def circle_path(cx: float, cy: float, r: float) -> str:
+    return f"M{cx - r:g},{cy:g} a{r:g},{r:g} 0 1,0 {2 * r:g},0 a{r:g},{r:g} 0 1,0 {-2 * r:g},0Z"
+
+
+def rect_path(x: float, y: float, w: float, h: float) -> str:
+    return f"M{x:g},{y:g} h{w:g} v{h:g} h{-w:g}Z"
+
+
+def is_black(color: str) -> bool:
+    return color.lower() in ("#000", "#000000", "black")
+
+
+def convert(color_of, skip_black: bool) -> tuple[list[str], dict]:
+    """Returns VectorDrawable elements for the logo's drawing group and its transform.
+
+    color_of maps an SVG colour to the colour to draw with; skip_black drops the
+    black shapes (for silhouettes, where they would fill the eye in).
+    """
+    svg = ET.parse(LOGO).getroot()
+    clips = {}
+    for cp in svg.iter(NS + "clipPath"):
+        r = cp.find(NS + "rect")
+        clips[cp.get("id")] = rect_path(*(float(r.get(k)) for k in ("x", "y", "width", "height")))
+
+    group = svg.find(NS + "g")
+    m = re.fullmatch(r"translate\(([\d.-]+)[ ,]+([\d.-]+)\)\s*rotate\(([\d.-]+)\)", group.get("transform", ""))
+    if not m:
+        raise SystemExit("logo: nhóm chính phải có transform dạng translate(x y) rotate(a)")
+    transform = {"tx": float(m[1]), "ty": float(m[2]), "rot": float(m[3])}
+
+    out = []
+    for el in group:
+        tag = el.tag.replace(NS, "")
+        if tag == "circle":
+            d = circle_path(float(el.get("cx", 0)), float(el.get("cy", 0)), float(el.get("r")))
+        elif tag == "line":
+            d = f"M{el.get('x1')},{el.get('y1')} L{el.get('x2')},{el.get('y2')}"
+        elif tag == "path":
+            d = el.get("d")
+        else:
+            raise SystemExit(f"logo: chưa hỗ trợ phần tử <{tag}>")
+
+        # A line has no area; other shapes are filled black unless they say otherwise.
+        fill = "none" if tag == "line" else el.get("fill", "#000000")
+        stroke = el.get("stroke")
+        if skip_black and is_black(fill):
+            fill = "none"
+        if fill == "none" and not stroke:
+            continue
+        attrs = []
+        if fill != "none":
+            attrs.append(f'android:fillColor="{color_of(fill)}"')
+        if stroke:
+            attrs.append(f'android:strokeColor="{color_of(stroke)}"')
+            attrs.append(f'android:strokeWidth="{el.get("stroke-width", "1")}"')
+            if el.get("stroke-linecap"):
+                attrs.append(f'android:strokeLineCap="{el.get("stroke-linecap")}"')
+            if el.get("stroke-linejoin"):
+                attrs.append(f'android:strokeLineJoin="{el.get("stroke-linejoin")}"')
+        path = f'<path {" ".join(attrs)} android:pathData="{d}" />'
+
+        clip = re.fullmatch(r"url\(#(.+)\)", el.get("clip-path", ""))
+        if clip:
+            # A clip-path applies to the paths after it in the same group.
+            path = f'<group><clip-path android:pathData="{clips[clip[1]]}" />{path}</group>'
+        out.append(path)
+    return out, transform
+
+
+def vector(size_dp: int, viewport: int, art_width: float, color_of, skip_black: bool) -> str:
     """A VectorDrawable with the artwork art_width wide, centred in the viewport."""
-    s = art_width / (X1 - X0)
-    tx = viewport / 2 - (X0 + X1) / 2 * s
-    ty = viewport / 2 - (Y0 + Y1) / 2 * s
-    body = "\n".join(f'        <path android:fillColor="{color}" android:pathData="{d}" />' for d in paths)
+    paths, t = convert(color_of, skip_black)
+    s = art_width / ART
+    off = viewport / 2 - CENTER * s
+    body = "\n".join("            " + p for p in paths)
     return f"""<?xml version="1.0" encoding="utf-8"?>
-<!-- Generated by tools/gen-icons.py from logo/BlackCyclone.svg; do not edit. -->
+<!-- Generated by mobile/tools/gen-icons.py from logo/black-cyclone-logo.svg; do not edit. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="{size_dp}dp"
     android:height="{size_dp}dp"
     android:viewportWidth="{viewport}"
     android:viewportHeight="{viewport}">
     <group android:scaleX="{s:.6f}" android:scaleY="{s:.6f}"
-        android:translateX="{tx:.4f}" android:translateY="{ty:.4f}">
+        android:translateX="{off:.4f}" android:translateY="{off:.4f}">
+        <group android:translateX="{t['tx']:g}" android:translateY="{t['ty']:g}" android:rotation="{t['rot']:g}">
 {body}
+        </group>
     </group>
 </vector>
 """
 
 
 def main():
-    paths = red_paths()
-    # Adaptive icon: 108dp canvas, launchers show at least the central 66dp circle;
-    # the eye's thin tips may run slightly past it.
-    (RES / "drawable" / "ic_launcher_foreground.xml").write_text(
-        vector(108, 108, 70, RED, paths), encoding="utf-8")
+    drawable = RES / "drawable"
+    same = lambda c: c.upper()
+    white = lambda c: "#FFFFFFFF"
+    # Adaptive icon: 108dp canvas; launchers always show the central 66dp circle.
+    (drawable / "ic_launcher_foreground.xml").write_text(vector(108, 108, 62, same, False), encoding="utf-8", newline="\n")
+    # Themed icons use only the alpha: without the black disc, so the eye stays open.
+    (drawable / "ic_launcher_monochrome.xml").write_text(vector(108, 108, 62, white, True), encoding="utf-8", newline="\n")
     # Status bar / quick settings tile: white silhouette, tinted by the system.
-    (RES / "drawable" / "ic_tile.xml").write_text(
-        vector(24, 24, 23, "#FFFFFFFF", paths), encoding="utf-8")
-    print(f"{len(paths)} path -> ic_launcher_foreground.xml, ic_tile.xml")
+    (drawable / "ic_tile.xml").write_text(vector(24, 24, 23, white, True), encoding="utf-8", newline="\n")
+    print("ic_launcher_foreground.xml, ic_launcher_monochrome.xml, ic_tile.xml")
 
 
 if __name__ == "__main__":
