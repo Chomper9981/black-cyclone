@@ -41,6 +41,15 @@ object Prefs {
         get() = ServerEntry.listFromJson(sp.getString("servers", null)?.let { Crypto.decrypt(it) })
         set(v) = sp.edit { putString("servers", Crypto.encrypt(ServerEntry.listToJson(v))) }
 
+    /** VPSes managed in the VPS tab (SSH login details included), as vps.Host JSON objects. */
+    var vpsHosts: List<VpsHost>
+        get() = VpsHost.listFromJson(sp.getString("vps_hosts", null)?.let { Crypto.decrypt(it) })
+        set(v) = sp.edit { putString("vps_hosts", Crypto.encrypt(VpsHost.listToJson(v))) }
+
+    var selectedVps: String?
+        get() = sp.getString("selected_vps", null)
+        set(v) = sp.edit { putString("selected_vps", v) }
+
     /** ServerEntry.id, or ServerEntry.AUTO for the lowest-latency server. */
     var selectedServer: String
         get() = sp.getString("selected_server", ServerEntry.AUTO)!!
