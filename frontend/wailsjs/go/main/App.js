@@ -10,6 +10,10 @@ export function AddSubscription(arg1, arg2) {
   return window['go']['main']['App']['AddSubscription'](arg1, arg2);
 }
 
+export function AddVPS(arg1) {
+  return window['go']['main']['App']['AddVPS'](arg1);
+}
+
 export function ApplyWarpLicense(arg1) {
   return window['go']['main']['App']['ApplyWarpLicense'](arg1);
 }
@@ -38,8 +42,16 @@ export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
 }
 
+export function ListVPS() {
+  return window['go']['main']['App']['ListVPS']();
+}
+
 export function OpenDataFolder() {
   return window['go']['main']['App']['OpenDataFolder']();
+}
+
+export function PickKeyFile() {
+  return window['go']['main']['App']['PickKeyFile']();
 }
 
 export function PingServers() {
@@ -70,6 +82,10 @@ export function RemoveSubscription(arg1) {
   return window['go']['main']['App']['RemoveSubscription'](arg1);
 }
 
+export function RemoveVPS(arg1) {
+  return window['go']['main']['App']['RemoveVPS'](arg1);
+}
+
 export function RenameServer(arg1, arg2) {
   return window['go']['main']['App']['RenameServer'](arg1, arg2);
 }
@@ -88,4 +104,32 @@ export function SetWarpEndpoint(arg1, arg2) {
 
 export function ShowWindow() {
   return window['go']['main']['App']['ShowWindow']();
+}
+
+export function VPSAddUser(arg1, arg2) {
+  return window['go']['main']['App']['VPSAddUser'](arg1, arg2);
+}
+
+export function VPSInstall(arg1, arg2) {
+  return window['go']['main']['App']['VPSInstall'](arg1, arg2);
+}
+
+export function VPSLogs(arg1) {
+  return window['go']['main']['App']['VPSLogs'](arg1);
+}
+
+export function VPSOverview(arg1) {
+  return window['go']['main']['App']['VPSOverview'](arg1);
+}
+
+export function VPSRemoveUser(arg1, arg2) {
+  return window['go']['main']['App']['VPSRemoveUser'](arg1, arg2);
+}
+
+export function VPSRestart(arg1) {
+  return window['go']['main']['App']['VPSRestart'](arg1);
+}
+
+export function VPSUninstall(arg1) {
+  return window['go']['main']['App']['VPSUninstall'](arg1);
 }
