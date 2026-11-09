@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Black Cyclone · Kết nối của bạn, máy chủ của bạn</title>
+  <meta name="description" content="Black Cyclone: ứng dụng mã nguồn mở cho Windows, Linux và Android. Tự dựng server trên VPS của chính bạn bằng một lệnh, không qua bên trung gian nào.">
+  <link rel="alternate" hreflang="vi" href="./">
+  <link rel="alternate" hreflang="en" href="en/">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="lang.js" defer></script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark"></span>
+      Black <b>Cyclone</b>
+    </a>
+    <nav class="nav-links">
+      <a href="#tu-chu">Tự chủ</a>
+      <a href="#cach-hoat-dong">Cách hoạt động</a>
+      <a href="#minh-bach">Minh bạch</a>
+      <a href="en/index.html" class="lang" hreflang="en" lang="en" aria-label="Switch to English"><span class="on">VI</span><span>EN</span></a>
+      <a href="#tai-ve" class="btn btn-sm">Tải về</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span> Mã nguồn mở · MIT / GPL-3.0</p>
+        <h1>Dữ liệu của bạn<br>đi qua <em>máy chủ của bạn</em>.</h1>
+        <p class="lead">
+          Black Cyclone biến một VPS giá rẻ thành server riêng chỉ bằng một lệnh.
+          Không có công ty VPN nào ở giữa, không có ai khác giữ log.
+          Bạn giữ khoá và nắm toàn quyền.
+        </p>
+        <div class="hero-cta">
+          <a href="#tai-ve" class="btn">Tải ứng dụng</a>
+          <a href="https://github.com/Chomper9981/black-cyclone" class="btn btn-ghost">Xem mã nguồn →</a>
+        </div>
+        <ul class="hero-meta">
+          <li>Windows</li><li>Linux</li><li>Android</li>
+        </ul>
+      </div>
+      <div class="hero-visual">
+        <div class="placeholder ph-app" data-label="Ảnh chụp ứng dụng · 3:4">
+          <span>Ảnh minh hoạ<br><small>Giao diện app khi đã kết nối</small></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLARS -->
+  <section id="tu-chu" class="section">
+    <div class="wrap">
+      <p class="kicker">Tự chủ thông tin</p>
+      <h2>Không cần tin ai, kể cả chúng tôi.</h2>
+      <p class="section-lead">
+        Dịch vụ VPN thông thường bắt bạn tin rằng họ không ghi log. Black Cyclone thì để bạn
+        tự giữ hạ tầng, nên không còn bên thứ ba nào phải tin nữa.
+      </p>
+
+      <div class="cards">
+        <article class="card">
+          <div class="card-head"><span class="card-icon" aria-hidden="true">◎</span><h3>Server là của bạn</h3></div>
+          <p>Thuê VPS ở nhà cung cấp bạn chọn rồi chạy một lệnh để cài đặt. Khoá Reality được tạo ngay trên VPS và chỉ root đọc được.</p>
+        </article>
+        <article class="card">
+          <div class="card-head"><span class="card-icon" aria-hidden="true">⌁</span><h3>Không có máy chủ trung gian</h3></div>
+          <p>App kết nối thẳng từ thiết bị tới VPS của bạn. Không có tài khoản, không có telemetry, không có server của dự án nằm giữa.</p>
+        </article>
+        <article class="card">
+          <div class="card-head"><span class="card-icon" aria-hidden="true">⧉</span><h3>Mã nguồn công khai</h3></div>
+          <p>Ai cũng đọc được toàn bộ app, script cài server và cấu hình sing-box. Binary tải về đều được kiểm SHA-256.</p>
+        </article>
+        <article class="card">
+          <div class="card-head"><span class="card-icon" aria-hidden="true">⛨</span><h3>Không rò rỉ khi rớt mạng</h3></div>
+          <p>Nếu lõi kết nối dừng, kill switch chặn mọi traffic để IP thật không bị lộ. Cài đặt trên máy được mã hoá.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section id="cach-hoat-dong" class="section section-alt">
+    <div class="wrap">
+      <p class="kicker">Cách hoạt động</p>
+      <h2>Ba bước, không cần tên miền.</h2>
+
+      <ol class="steps">
+        <li>
+          <span class="step-n">01</span>
+          <h3>Thuê một VPS</h3>
+          <p>Gói rẻ nhất là đủ (1 vCPU, 512 MB RAM), chạy Ubuntu hoặc Debian. Nên chọn Singapore, Nhật hoặc Hồng Kông để ping thấp.</p>
+        </li>
+        <li>
+          <span class="step-n">02</span>
+          <h3>Chạy một lệnh</h3>
+          <p>Script cài sing-box với VLESS + Reality, bật BBR, mở tường lửa rồi in ra link kết nối.</p>
+          <pre class="code"><code><span class="c">$</span> server/deploy.sh root@203.0.113.10</code></pre>
+        </li>
+        <li>
+          <span class="step-n">03</span>
+          <h3>Dán link và kết nối</h3>
+          <p>Mở Black Cyclone, chọn <b>Server riêng</b>, dán link vào. Nhà mạng chỉ thấy một kết nối HTTPS bình thường.</p>
+        </li>
+      </ol>
+
+      <figure class="diagram">
+        <div class="diagram-scroll"><img src="assets/diagram-vi.svg" width="1000" height="420" loading="lazy"
+             alt="Sơ đồ: thiết bị kết nối mã hoá qua nhà mạng tới VPS của bạn, VPS đi ra Internet; web Việt Nam và LAN đi thẳng"></div>
+        <figcaption>Traffic đi trong đường hầm mã hoá tới VPS do bạn tự quản lý. Nhà mạng chỉ thấy một kết nối HTTPS bình thường, còn web Việt Nam thì đi thẳng.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- TRANSPARENCY -->
+  <section id="minh-bach" class="section">
+    <div class="wrap">
+      <p class="kicker">Minh bạch</p>
+      <h2>Riêng tư khác với ẩn danh.</h2>
+      <p class="section-lead">
+        Chúng tôi muốn bạn hiểu rõ công cụ mình đang dùng. Server tự dựng
+        cho bạn quyền kiểm soát, nhưng không làm bạn vô hình.
+      </p>
+
+      <div class="compare">
+        <div class="compare-col yes">
+          <h3>Black Cyclone bảo vệ bạn khỏi</h3>
+          <ul>
+            <li>Nhà mạng và Wi-Fi công cộng đọc hoặc chặn nội dung bạn truy cập</li>
+            <li>Công ty VPN thu thập và bán dữ liệu duyệt web</li>
+            <li>Lộ IP thật khi kết nối bị rớt</li>
+          </ul>
+        </div>
+        <div class="compare-col no">
+          <h3>Nhưng không giúp bạn</h3>
+          <ul>
+            <li>Ẩn danh với website. IP của VPS chỉ có bạn dùng, nên nó vẫn là một dấu vết gắn với bạn</li>
+            <li>Ẩn danh với nhà cung cấp VPS, vì họ biết ai đã thuê máy</li>
+            <li>Chống lại việc bị theo dõi qua tài khoản, cookie hay fingerprint của trình duyệt</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">
+        Nếu cần ẩn danh thật sự, hãy dùng <a href="https://www.torproject.org/">Tor</a>.
+        Chia sẻ server với gia đình bằng lệnh <code>bcserver add</code> sẽ có thêm người dùng chung một IP,
+        nhưng mục tiêu của Black Cyclone vẫn là tự chủ, không phải ẩn danh.
+      </p>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section class="section section-alt">
+    <div class="wrap modes">
+      <div class="mode-card">
+        <span class="tag">Khuyên dùng</span>
+        <h3>Server riêng</h3>
+        <p>Dùng VPS của bạn, hoặc bất kỳ link <code>vless</code> <code>vmess</code> <code>trojan</code> <code>ss</code> <code>hysteria2</code> <code>tuic</code>, kể cả subscription URL. Có thể tự động chọn server nhanh nhất và đổi server mà không cần ngắt kết nối.</p>
+      </div>
+      <div class="mode-card">
+        <span class="tag tag-muted">Không cần VPS</span>
+        <h3>Cloudflare WARP</h3>
+        <p>Đăng ký WARP miễn phí ngay trong app và tự quét endpoint nhanh nhất. Tiện khi chưa có VPS, nhưng lúc này traffic đi qua Cloudflare.</p>
+      </div>
+      <div class="placeholder ph-mode" data-label="Ảnh chụp · 4:3">
+        <span>Ảnh minh hoạ<br><small>Màn hình chọn chế độ / chia tuyến</small></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section id="tai-ve" class="section download">
+    <div class="wrap">
+      <h2>Bắt đầu tự chủ kết nối của bạn.</h2>
+      <p class="section-lead">Miễn phí và mã nguồn mở. Bản cài đặt nằm ở trang Releases trên GitHub.</p>
+      <div class="dl-grid">
+        <a class="dl" href="https://github.com/Chomper9981/black-cyclone/releases/latest">
+          <b>Windows</b><span>Bộ cài .exe</span>
+        </a>
+        <a class="dl" href="https://github.com/Chomper9981/black-cyclone/releases/latest">
+          <b>Linux</b><span>.deb · amd64 / arm64</span>
+        </a>
+        <a class="dl" href="https://github.com/Chomper9981/black-cyclone/releases/latest">
+          <b>Android</b><span>APK theo từng ABI</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© 2026 Red Cyclone · Mã nguồn theo giấy phép MIT, APK Android theo GPL-3.0</span>
+    <span>Lõi kết nối: <a href="https://github.com/SagerNet/sing-box">sing-box</a> (SagerNet, GPL-3.0)</span>
+  </div>
+</footer>
+
+</body>
+</html>
