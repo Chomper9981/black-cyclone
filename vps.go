@@ -260,10 +260,9 @@ func (a *App) withVPS(id string, timeout time.Duration, fn func(ctx context.Cont
 	if h.HostKey == "" {
 		return errors.New("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại")
 	}
+	// Wait for the operation in progress (e.g. the UI's periodic refresh).
 	l := hostLock(id)
-	if !l.TryLock() {
-		return errors.New("VPS đang bận với thao tác khác, đợi một chút")
-	}
+	l.Lock()
 	defer l.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -368,4 +367,16 @@ func (a *App) VPSLinkQR(link string) (string, error) {
 		return "", err
 	}
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
+}
+
+// VPSResetTraffic zeroes every user's traffic counters on the server.
+func (a *App) VPSResetTraffic(id string) (o vps.Overview, err error) {
+	err = a.withVPS(id, time.Minute, func(ctx context.Context, c *vps.Client) error {
+		if err := c.ResetTraffic(ctx); err != nil {
+			return err
+		}
+		o, err = c.Overview(ctx, bcserverSum)
+		return err
+	})
+	return o, err
 }

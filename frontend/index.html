@@ -209,6 +209,7 @@
                 <p><b>Quản lý và người dùng khác nhau ở chỗ nào?</b> Ai đăng nhập SSH được vào VPS (root hoặc user có sudo) thì là người quản lý. Người dùng chỉ có link <code>vless://</code>: link đó chỉ kết nối được VPN, không mở được SSH, nên không thể thêm / xoá ai hay xem log.</p>
                 <p>Thông tin đăng nhập SSH được mã hoá và chỉ lưu trên máy này. Đừng đưa mật khẩu SSH cho người dùng: gửi họ link của riêng họ là đủ.</p>
                 <p>Lần đầu kết nối, app ghi nhớ khoá SSH của VPS (fingerprint). Nếu về sau khoá đổi, app sẽ từ chối kết nối để chống giả mạo.</p>
+                <p><b>Lưu lượng</b> (↓ tải xuống, ↑ tải lên) là số byte VPS trao đổi với Internet cho từng người, tính cả header gói tin nên hơi lớn hơn dung lượng file. Số liệu được giữ khi khởi động lại server; bấm “đặt lại” để đếm lại từ 0. <b>Online</b>: người đó đang có kết nối mở, kèm số địa chỉ IP. Một link dùng từ nhiều IP cùng lúc thường là đã bị chia sẻ: xoá người đó rồi tạo link mới.</p>
             </div>
             <div id="vps-list" class="srv-list" role="radiogroup"></div>
             <details id="vps-add-box" class="inner">

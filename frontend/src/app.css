@@ -407,7 +407,12 @@ body[data-os="linux"] .help-text p.os-win + p.os-linux { margin-top: 0; }
     border: 1px solid rgba(255,179,0,.35); background: var(--warn-dim); border-radius: 6px;
 }
 .vps-note .link { color: inherit; }
-.vps-sub { margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+.vps-sub { margin: 12px 0 6px; font-size: 12px; color: var(--muted); display: flex; align-items: baseline; gap: 8px; }
+.vps-sub > span:first-child { flex: 1; }
+.vps-total { font-variant-numeric: tabular-nums; }
+.srv-meta .sep { opacity: .5; }
+.srv-meta .online { color: #66bb6a; }
+.srv-meta .online.many { color: #ffd54f; }
 .vps-sub .count { font-size: 11px; }
 .sub-row .icon { font-size: 11px; }
 .in-app { color: #66bb6a; }

@@ -138,6 +138,10 @@ export function VPSRemoveUser(arg1, arg2) {
   return window['go']['main']['App']['VPSRemoveUser'](arg1, arg2);
 }
 
+export function VPSResetTraffic(arg1) {
+  return window['go']['main']['App']['VPSResetTraffic'](arg1);
+}
+
 export function VPSRestart(arg1) {
   return window['go']['main']['App']['VPSRestart'](arg1);
 }

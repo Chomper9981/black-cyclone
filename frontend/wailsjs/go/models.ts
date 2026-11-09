@@ -357,6 +357,10 @@ export namespace vps {
 	export class User {
 	    name: string;
 	    link: string;
+	    up: number;
+	    down: number;
+	    conns: number;
+	    ips: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new User(source);
@@ -366,6 +370,10 @@ export namespace vps {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.link = source["link"];
+	        this.up = source["up"];
+	        this.down = source["down"];
+	        this.conns = source["conns"];
+	        this.ips = source["ips"];
 	    }
 	}
 	export class Overview {
@@ -377,6 +385,8 @@ export namespace vps {
 	    sni: string;
 	    version: string;
 	    script_outdated: boolean;
+	    stats: boolean;
+	    online: boolean;
 	    users: User[];
 	
 	    static createFrom(source: any = {}) {
@@ -393,6 +403,8 @@ export namespace vps {
 	        this.sni = source["sni"];
 	        this.version = source["version"];
 	        this.script_outdated = source["script_outdated"];
+	        this.stats = source["stats"];
+	        this.online = source["online"];
 	        this.users = this.convertValues(source["users"], User);
 	    }
 	

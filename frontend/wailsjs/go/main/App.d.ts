@@ -72,6 +72,8 @@ export function VPSOverview(arg1:string):Promise<vps.Overview>;
 
 export function VPSRemoveUser(arg1:string,arg2:string):Promise<vps.Overview>;
 
+export function VPSResetTraffic(arg1:string):Promise<vps.Overview>;
+
 export function VPSRestart(arg1:string):Promise<vps.Overview>;
 
 export function VPSUninstall(arg1:string):Promise<vps.Overview>;

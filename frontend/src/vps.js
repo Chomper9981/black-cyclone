@@ -14,18 +14,32 @@ import {
     VPSLogs,
     VPSUninstall,
     VPSLinkQR,
+    VPSResetTraffic,
 } from '../wailsjs/go/main/App';
 import {EventsOn, ClipboardSetText} from '../wailsjs/runtime/runtime';
 
 const $ = (id) => document.getElementById(id);
 const ARM_MS = 3000;
 const OUT_MAX = 400;
+const POLL_MS = 20000;   // refresh who is online while the tab is open
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const errText = (e) => {
     const t = e == null ? 'Lỗi không xác định' : typeof e === 'string' ? e : (e.message || String(e));
     return t.charAt(0).toUpperCase() + t.slice(1); // Go errors start lowercase
 };
+function fmtBytes(n) {
+    n = Math.max(0, Number(n) || 0);
+    if (n < 1024) return `${n} B`;
+    const units = ['KB', 'MB', 'GB', 'TB'];
+    let i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+    return `${n < 10 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
+}
+
+// A link used from this many addresses at once has probably been shared.
+const MANY_IPS = 3;
+
 const hostPort = (h, p) => (String(h).includes(':') ? `[${h}]` : h) + (p ? `:${p}` : '');
 
 let hosts = [];
@@ -86,6 +100,20 @@ function stateBadge(active) {
     return `<span class="state off">${esc(active === 'failed' ? 'Lỗi' : 'Đã dừng')}</span>`;
 }
 
+function userMeta(o, u, inApp) {
+    const parts = [];
+    if (u.conns > 0) {
+        const ips = u.ips || [];
+        const many = ips.length >= MANY_IPS;
+        parts.push(`<span class="online${many ? ' many' : ''}" title="${esc(ips.join(', '))}">● online · ${ips.length} IP` +
+            `${many ? ' (link bị chia sẻ?)' : ''}</span>`);
+    }
+    if (o.stats) parts.push(`↓ ${esc(fmtBytes(u.down))} ↑ ${esc(fmtBytes(u.up))}`);
+    if (inApp) parts.push('<span class="in-app">đã có trong app</span>');
+    if (parts.length === 0) parts.push('link riêng của người này');
+    return parts.join('<span class="sep">·</span>');
+}
+
 function renderInstallForm(update) {
     const b = op === 'install';
     return '<div class="vps-install">' +
@@ -144,14 +172,25 @@ function renderDetail() {
                 `<button type="button" class="link" data-act="show-update"${op ? ' disabled' : ''}>cập nhật</button></div>`;
         }
 
-        html += '<div class="vps-sub">Người dùng <span class="count">(' + o.users.length + ')</span></div><div class="sub-list">';
+        let total = '';
+        if (o.stats) {
+            const up = o.users.reduce((a, u) => a + (u.up || 0), 0);
+            const down = o.users.reduce((a, u) => a + (u.down || 0), 0);
+            const rArmed = armed.has('reset');
+            total = `<span class="vps-total">tổng ↓ ${esc(fmtBytes(down))} ↑ ${esc(fmtBytes(up))}</span>` +
+                `<button type="button" class="link" data-act="reset"${op ? ' disabled' : ''} title="Đặt lại thống kê lưu lượng của mọi người về 0">` +
+                `${op === 'reset' ? 'đang đặt lại…' : rArmed ? 'nhấn lần nữa để đặt lại' : 'đặt lại'}</button>`;
+        }
+        const online = o.users.filter((u) => u.conns > 0).length;
+        html += '<div class="vps-sub"><span>Người dùng <span class="count">(' + o.users.length +
+            (o.online ? `, ${online} đang online` : '') + ')</span></span>' + total + '</div><div class="sub-list">';
         for (const u of o.users || []) {
             const delArmed = armed.has('user:' + u.name);
             const has = inApp.has(u.link);
             const last = o.users.length <= 1;
             html += '<div class="sub-row">' +
                 `<span class="srv-main"><span class="srv-name">${esc(u.name)}</span>` +
-                `<span class="srv-meta">${has ? '<span class="in-app">đã có trong app</span>' : 'link riêng của người này'}</span></span>` +
+                `<span class="srv-meta">${userMeta(o, u, has)}</span></span>` +
                 '<span class="srv-acts">' +
                 `<button type="button" class="icon${qr && qr.id === h.id && qr.name === u.name ? ' on' : ''}" data-act="qr" data-name="${esc(u.name)}" title="Hiện mã QR để điện thoại quét">QR</button>` +
                 `<button type="button" class="icon" data-act="copy" data-name="${esc(u.name)}" title="Copy link để gửi cho người này">copy</button>` +
@@ -469,6 +508,11 @@ async function onDetailClick(ev) {
         }, 'Đã chấp nhận khoá SSH mới của VPS.');
         return;
     }
+    case 'reset':
+        if (!armed.has('reset')) { arm('reset'); return; }
+        disarm('reset');
+        run('reset', VPSResetTraffic, 'Đã đặt lại thống kê lưu lượng.');
+        return;
     case 'restart':
         run('restart', VPSRestart, 'Đã khởi động lại server.');
         return;
@@ -531,6 +575,23 @@ async function onPickKey() {
     }
 }
 
+// poll quietly refreshes the selected VPS (online users, traffic) while the
+// tab is visible and nothing else runs; errors are left for the next manual refresh.
+let polling = false;
+async function poll() {
+    const id = selected;
+    if (polling || op || !id || !paneVisible() || document.hidden) return;
+    if (overviews.get(id)?.state !== 'ok' || !overviews.get(id).data.installed) return;
+    polling = true;
+    try {
+        const data = await VPSOverview(id);
+        if (!op) overviews.set(id, {state: 'ok', data: normOverview(data)});
+        render();
+    } catch { /* keep the last state */ } finally {
+        polling = false;
+    }
+}
+
 /* ---------------- Wiring ---------------- */
 
 export function initVPS(hooks) {
@@ -583,6 +644,7 @@ export function initVPS(hooks) {
     });
 
     loadHosts();
+    setInterval(poll, POLL_MS);
 }
 
 // renderVPS refreshes the tab when the app's settings change (e.g. "đã có trong app").
