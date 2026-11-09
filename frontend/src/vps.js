@@ -164,8 +164,8 @@ function renderDetail() {
         html += '<div class="ip-grid vps-grid">' +
             `<span>Trạng thái</span>${stateBadge(o.active)}` +
             `<span>sing-box</span><b>${esc(o.version || '?')}</b>` +
-            `<span>Địa chỉ</span><code>${esc(hostPort(o.host, o.port))}</code>` +
-            `<span>SNI</span><code>${esc(o.sni)}</code>` +
+            `<span>Địa chỉ</span><code class="wide">${esc(hostPort(o.host, o.port))}</code>` +
+            `<span>SNI</span><code class="wide">${esc(o.sni)}</code>` +
             '</div>';
         if (o.script_outdated && !showUpdate) {
             html += '<div class="vps-note">Bản server trên VPS cũ hơn bản đi kèm app này. ' +
