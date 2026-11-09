@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -36,6 +37,14 @@ func Script(raw []byte) (data []byte, sum string) {
 type User struct {
 	Name string `json:"name"`
 	Link string `json:"link"`
+	// Traffic between the VPS and the Internet for this user, in bytes, since
+	// the stats began or were reset (when Overview.Stats).
+	Up   int64 `json:"up"`
+	Down int64 `json:"down"`
+	// Open connections right now and the addresses they come from (when
+	// Overview.Online). Many addresses at once can mean the link was shared.
+	Conns int      `json:"conns"`
+	IPs   []string `json:"ips"`
 }
 
 // Overview is the state of the server on a VPS.
@@ -48,6 +57,8 @@ type Overview struct {
 	SNI            string `json:"sni"`
 	Version        string `json:"version"`         // sing-box on the server
 	ScriptOutdated bool   `json:"script_outdated"` // the VPS runs an older bcserver than this app ships
+	Stats          bool   `json:"stats"`           // per-user traffic is available
+	Online         bool   `json:"online"`          // open connections are available
 	Users          []User `json:"users"`
 }
 
@@ -61,6 +72,10 @@ echo "@@SINCE $(systemctl show blackcyclone -p ActiveEnterTimestamp --value 2>/d
 grep -E '^(PORT|SNI|HOST)=' /etc/blackcyclone/server.conf | sed 's/^/@@CONF /'
 echo "@@VERSION $(/opt/blackcyclone/sing-box version 2>/dev/null | head -n1 | awk '{print $3}')"
 echo "@@SCRIPT $(sha256sum ` + bin + ` | cut -c1-64)"
+echo "@@TRAFFIC"
+` + bin + ` traffic 2>/dev/null || true
+echo "@@ONLINE $(` + bin + ` online 2>/dev/null | tr -d '
+')"
 echo "@@LINKS"
 ` + bin + ` link
 `
@@ -74,10 +89,13 @@ echo "@@LINKS"
 func parseOverview(out, scriptSum string) Overview {
 	var o Overview
 	o.Installed = true
-	links := false
+	links, traffic := false, false
 	var name string
+	type counters struct{ up, down int64 }
+	stats := map[string]counters{}
+	var online map[string]*User
 	sc := bufio.NewScanner(strings.NewReader(out))
-	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	sc.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		switch {
@@ -102,6 +120,22 @@ func parseOverview(out, scriptSum string) Overview {
 		case strings.HasPrefix(line, "@@SCRIPT "):
 			sum := strings.TrimSpace(strings.TrimPrefix(line, "@@SCRIPT "))
 			o.ScriptOutdated = scriptSum != "" && sum != scriptSum
+		case line == "@@TRAFFIC":
+			traffic = true
+		case strings.HasPrefix(line, "@@ONLINE"):
+			traffic = false
+			online = parseOnline(strings.TrimSpace(strings.TrimPrefix(line, "@@ONLINE")))
+			o.Online = online != nil
+		case traffic:
+			f := strings.Fields(line)
+			if len(f) == 3 {
+				up, e1 := strconv.ParseInt(f[1], 10, 64)
+				down, e2 := strconv.ParseInt(f[2], 10, 64)
+				if e1 == nil && e2 == nil {
+					stats[f[0]] = counters{up, down}
+					o.Stats = true
+				}
+			}
 		case line == "@@LINKS":
 			links = true
 		case links && strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]"):
@@ -114,7 +148,70 @@ func parseOverview(out, scriptSum string) Overview {
 	if o.Active == "" {
 		o.Active = "unknown"
 	}
+	for i := range o.Users {
+		u := &o.Users[i]
+		c := stats[u.Name]
+		u.Up, u.Down = c.up, c.down
+		if on := online[u.Name]; on != nil {
+			u.Conns, u.IPs = on.Conns, on.IPs
+		}
+	}
 	return o
+}
+
+// parseOnline reads the Clash API /connections JSON. Each user leaves through
+// the outbound "u-<name>", so a connection's chain names its user. Returns nil
+// if the JSON is missing or invalid.
+func parseOnline(js string) map[string]*User {
+	if js == "" {
+		return nil
+	}
+	var r struct {
+		Connections []struct {
+			Chains   []string `json:"chains"`
+			Metadata struct {
+				SourceIP string `json:"sourceIP"`
+			} `json:"metadata"`
+		} `json:"connections"`
+	}
+	if err := json.Unmarshal([]byte(js), &r); err != nil {
+		return nil
+	}
+	out := map[string]*User{}
+	for _, c := range r.Connections {
+		for _, tag := range c.Chains {
+			name, ok := strings.CutPrefix(tag, "u-")
+			if !ok {
+				continue
+			}
+			u := out[name]
+			if u == nil {
+				u = &User{Name: name}
+				out[name] = u
+			}
+			u.Conns++
+			if ip := c.Metadata.SourceIP; ip != "" && !contains(u.IPs, ip) {
+				u.IPs = append(u.IPs, ip)
+			}
+			break
+		}
+	}
+	return out
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+// ResetTraffic zeroes every user's traffic counters.
+func (c *Client) ResetTraffic(ctx context.Context) error {
+	_, err := c.Run(ctx, bin+" traffic --reset", nil)
+	return err
 }
 
 // InstallOptions are passed to "bcserver install"; empty values keep the

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"os"
@@ -14,6 +16,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+
+	"black-cyclone/internal/share"
 )
 
 func TestParseOverview(t *testing.T) {
@@ -24,6 +28,10 @@ func TestParseOverview(t *testing.T) {
 @@CONF HOST=203.0.113.10
 @@VERSION 1.14.3
 @@SCRIPT abc
+@@TRAFFIC
+default 1000 5000000000
+phone 0 0
+@@ONLINE {"downloadTotal":1,"connections":[{"chains":["u-phone"],"metadata":{"sourceIP":"198.51.100.1"}},{"chains":["u-phone"],"metadata":{"sourceIP":"198.51.100.2"}},{"chains":["u-phone"],"metadata":{"sourceIP":"198.51.100.1"}},{"chains":["direct"],"metadata":{"sourceIP":"9.9.9.9"}}]}
 @@LINKS
 [default]
 vless://u1@203.0.113.10:443?security=reality#203.0.113.10-default
@@ -39,6 +47,12 @@ vless://u2@203.0.113.10:443?security=reality#203.0.113.10-phone
 	}
 	if len(o.Users) != 2 || o.Users[1].Name != "phone" || !strings.HasPrefix(o.Users[1].Link, "vless://u2@") {
 		t.Fatalf("bad users: %+v", o.Users)
+	}
+	if !o.Stats || !o.Online || o.Users[0].Down != 5000000000 || o.Users[0].Up != 1000 || o.Users[0].Conns != 0 {
+		t.Fatalf("bad stats: %+v", o.Users[0])
+	}
+	if p := o.Users[1]; p.Conns != 3 || len(p.IPs) != 2 {
+		t.Fatalf("bad online: %+v", p)
 	}
 	if parseOverview(out, "other").ScriptOutdated != true {
 		t.Fatal("script hash mismatch not detected")
@@ -172,6 +186,33 @@ func TestLive(t *testing.T) {
 		len(o.Users) != 1 || o.Users[0].Name != "tester" {
 		t.Fatalf("after install: %+v %v", o, err)
 	}
+
+	// Traffic through tester's link is counted for tester, and an open
+	// connection shows up as online. The client runs inside the VPS itself.
+	ob, err := share.ParseOutbound(o.Users[0].Link, "proxy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, _ := json.Marshal(map[string]any{
+		"log":       map[string]any{"level": "warn"},
+		"inbounds":  []any{map[string]any{"type": "mixed", "listen": "127.0.0.1", "listen_port": 1080}},
+		"outbounds": []any{ob},
+		"route":     map[string]any{"final": "proxy"},
+	})
+	const dl = "https://speed.cloudflare.com/__down?bytes="
+	vpsSh("echo " + base64.StdEncoding.EncodeToString(client) + " | base64 -d > /tmp/client.json" +
+		" && (nohup /opt/blackcyclone/sing-box run -c /tmp/client.json >/tmp/client.log 2>&1 &) && sleep 2" +
+		" && curl -fsS -x socks5h://127.0.0.1:1080 -o /dev/null '" + dl + "3000000'" +
+		" && (nohup curl -s -x socks5h://127.0.0.1:1080 --limit-rate 20k -o /dev/null '" + dl + "5000000' >/dev/null 2>&1 &) && sleep 2")
+	o, err = c.Overview(ctx, sum)
+	if err != nil || !o.Stats || !o.Online {
+		t.Fatalf("stats unavailable: %+v %v", o, err)
+	}
+	if u := o.Users[0]; u.Down < 3_000_000 || u.Conns == 0 || len(u.IPs) == 0 {
+		t.Fatalf("tester traffic/online not seen: %+v", u)
+	}
+	t.Logf("tester: up %d, down %d, %d conns from %v", o.Users[0].Up, o.Users[0].Down, o.Users[0].Conns, o.Users[0].IPs)
+	vpsSh("pkill -f 'curl -s -x [s]ocks5h' ; true")
 	c.Close()
 
 	// Root with a password, through the same pinned key.
@@ -195,6 +236,16 @@ func TestLive(t *testing.T) {
 	}
 	if err := c.Restart(ctx); err != nil {
 		t.Fatal("restart:", err)
+	}
+	// Counters survive a restart (synced to disk on stop / start).
+	if o, _ = c.Overview(ctx, sum); len(o.Users) != 1 || o.Users[0].Down < 3_000_000 {
+		t.Fatalf("traffic lost on restart: %+v", o.Users)
+	}
+	if err := c.ResetTraffic(ctx); err != nil {
+		t.Fatal("reset traffic:", err)
+	}
+	if o, _ = c.Overview(ctx, sum); o.Users[0].Down >= 3_000_000 {
+		t.Fatalf("traffic not reset: %+v", o.Users)
 	}
 	if logs, err := c.Logs(ctx); err != nil || strings.TrimSpace(logs) == "" {
 		t.Fatalf("logs: %q %v", logs, err)
