@@ -205,7 +205,7 @@ details[open] > summary { margin-bottom: 10px; }
 
 /* Tabs */
 .tabs {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px;
     position: sticky; top: 0; z-index: 5;
 }
@@ -383,3 +383,51 @@ body[data-os="linux"] .os-win,
 body:not([data-os="linux"]) .os-linux { display: none !important; }
 /* The first Linux paragraph after the hidden Windows ones starts the box. */
 body[data-os="linux"] .help-text p.os-win + p.os-linux { margin-top: 0; }
+
+/* VPS tab */
+.field-row { display: flex; gap: 8px; }
+.field-row .grow { flex: 1; min-width: 0; }
+.field-row .port { width: 92px; flex: none; }
+.row.tight { margin-top: 0; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); align-self: flex-start; }
+.seg label { cursor: pointer; position: relative; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 4px 12px; border-radius: 6px; font-size: 12px; color: var(--muted); }
+.seg input:checked + span { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.seg label:has(input:focus-visible) span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vps-grid { grid-template-columns: auto 1fr auto auto; }
+.vps-grid code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.state { font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.state.on { color: #66bb6a; }
+.state.warn { color: #ffd54f; }
+.state.off { color: #ff8a80; }
+.vps-note {
+    margin-top: 8px; padding: 6px 10px; font-size: 12px; color: #ffd54f;
+    border: 1px solid rgba(255,179,0,.35); background: var(--warn-dim); border-radius: 6px;
+}
+.vps-note .link { color: inherit; }
+.vps-sub { margin: 12px 0 6px; font-size: 12px; color: var(--muted); display: flex; align-items: baseline; gap: 8px; }
+.vps-sub > span:first-child { flex: 1; }
+.vps-total { font-variant-numeric: tabular-nums; }
+.srv-meta .sep { opacity: .5; }
+.srv-meta .online { color: #66bb6a; }
+.srv-meta .online.many { color: #ffd54f; }
+.vps-sub .count { font-size: 11px; }
+.sub-row .icon { font-size: 11px; }
+.in-app { color: #66bb6a; }
+.vps-install { margin-top: 10px; }
+.vps-install > .hint { margin: 0 0 8px; }
+.vps-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.vps-fp { margin-top: 10px; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vps-fp code { font-size: 11px; user-select: text; }
+.vps-out {
+    margin: 10px 0 0; max-height: 220px; overflow: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 10px; font: 11px/1.45 Consolas, "Cascadia Mono", monospace;
+    white-space: pre-wrap; word-break: break-all; user-select: text;
+}
+.icon.on { color: var(--text); background: var(--surface); border-color: var(--line); }
+.qr-box { display: flex; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.qr-box img { flex: none; width: 140px; height: 140px; border-radius: 6px; background: #fff; image-rendering: pixelated; }
+.qr-box .hint { margin: 0; line-height: 1.5; }

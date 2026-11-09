@@ -92,6 +92,7 @@ complete license texts, generated from the exact module versions used, are in
 | github.com/wailsapp/wails/v2 | MIT |
 | github.com/wailsapp/go-webview2 | MIT |
 | github.com/energye/systray | Apache-2.0 |
+| github.com/skip2/go-qrcode | MIT |
 | github.com/tkrajina/go-reflector | Apache-2.0 |
 | github.com/godbus/dbus/v5 | BSD-2-Clause |
 | github.com/google/uuid | BSD-3-Clause |
@@ -121,11 +122,12 @@ The Android app (GPL-3.0-or-later, see above) contains:
 | sing-box 1.14.3 and its SagerNet libraries (sing, sing-tun, sing-quic, sing-vmess, …) | GPL-3.0-or-later |
 | gVisor, quic-go, uTLS, wireguard-go and the other Go modules sing-box uses | MIT, BSD, Apache-2.0, ISC, MPL-2.0 |
 | Go standard library, golang.org/x/* | BSD-3-Clause |
+| github.com/skip2/go-qrcode (QR codes in the VPS tab) | MIT |
 | AndroidX (core, activity, lifecycle) and Jetpack Compose | Apache-2.0 |
 | Kotlin standard library | Apache-2.0 |
 | geoip-vn.srs, when bundled (see above) | GPL-3.0-or-later; GeoLite2 data by MaxMind |
 
-The complete license texts of all 76 Go modules, generated from the exact
+The complete license texts of all 77 Go modules, generated from the exact
 versions built, are in `licenses/go-android.txt`; the GNU GPL and Apache
 License texts are in `licenses/GPL-3.0.txt` and `licenses/Apache-2.0.txt`.
 The APK carries these files (with `LICENSE` and this notice) under

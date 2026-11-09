@@ -21,13 +21,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.blackcyclone.vpn.MainViewModel
+import com.blackcyclone.vpn.VpsViewModel
 import com.blackcyclone.vpn.R
 
 private data class Tab(val label: String, @param:DrawableRes val icon: Int)
 
 private val tabs = listOf(
     Tab("Kết nối", R.drawable.ic_nav_power),
+    Tab("VPS", R.drawable.ic_nav_server),
     Tab("Cài đặt", R.drawable.ic_nav_settings),
     Tab("Nhật ký", R.drawable.ic_nav_logs),
 )
@@ -37,6 +40,7 @@ fun AppRoot(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     val toast by vm.toast.collectAsStateWithLifecycle()
+    val vpsVm: VpsViewModel = viewModel()
 
     LaunchedEffect(toast) {
         toast?.let {
@@ -63,7 +67,8 @@ fun AppRoot(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) 
         Box(Modifier.fillMaxSize().padding(pad)) {
             when (tab) {
                 0 -> ConnectScreen(vm, onConnect, onDisconnect)
-                1 -> SettingsScreen()
+                1 -> VpsScreen(vpsVm, vm)
+                2 -> SettingsScreen()
                 else -> LogsScreen(onCopied = { vm.toast("Đã sao chép nhật ký") })
             }
         }
