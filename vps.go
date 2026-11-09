@@ -83,12 +83,11 @@ func (a *App) ListVPS() ([]VPSView, error) {
 	return out, err
 }
 
-// AddVPS checks the login (and root rights) before saving, and pins the SSH host key.
-func (a *App) AddVPS(in VPSInput) (VPSView, error) {
+// hostFromInput validates the form into a Host (no ID, secrets as given).
+func hostFromInput(in VPSInput) (vps.Host, error) {
 	h := vps.Host{
-		ID:       settings.NewID(),
 		Name:     strings.TrimSpace(in.Name),
-		Addr:     strings.TrimSpace(in.Addr),
+		Addr:     strings.Trim(strings.TrimSpace(in.Addr), "[]"),
 		Port:     in.Port,
 		User:     strings.TrimSpace(in.User),
 		Password: in.Password,
@@ -100,41 +99,130 @@ func (a *App) AddVPS(in VPSInput) (VPSView, error) {
 	if h.User == "" {
 		h.User = "root"
 	}
-	h.Addr = strings.Trim(h.Addr, "[]")
 	if h.Addr == "" || strings.ContainsAny(h.Addr, " /@") {
-		return VPSView{}, errors.New("nhập IP hoặc tên miền của VPS")
+		return h, errors.New("nhập IP hoặc tên miền của VPS")
 	}
 	if h.Port < 1 || h.Port > 65535 {
-		return VPSView{}, errors.New("cổng SSH phải từ 1 đến 65535")
+		return h, errors.New("cổng SSH phải từ 1 đến 65535")
 	}
 	if h.Name == "" {
 		h.Name = h.Addr
 	}
+	return h, nil
+}
 
+// verifyLogin logs in (pinning the host key if h has none) and checks root rights.
+func (a *App) verifyLogin(h *vps.Host) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	a.log("Đang kiểm tra đăng nhập SSH vào " + h.Addr + "…")
-	c, err := vps.Dial(ctx, &h)
+	c, err := vps.Dial(ctx, h)
 	if err != nil {
 		a.log("SSH thất bại: " + err.Error())
-		return VPSView{}, err
+		return err
 	}
 	defer c.Close()
-	if err := c.CheckRoot(ctx); err != nil {
-		return VPSView{}, err
-	}
+	return c.CheckRoot(ctx)
+}
 
+// saveHost replaces the host with the same ID, or appends it.
+func saveHost(h vps.Host) error {
 	vpsMu.Lock()
 	defer vpsMu.Unlock()
 	hosts, err := vps.Load()
 	if err != nil {
+		return err
+	}
+	for i := range hosts {
+		if hosts[i].ID == h.ID {
+			hosts[i] = h
+			return vps.Save(hosts)
+		}
+	}
+	return vps.Save(append(hosts, h))
+}
+
+func loadHost(id string) (vps.Host, error) {
+	vpsMu.Lock()
+	defer vpsMu.Unlock()
+	hosts, err := vps.Load()
+	if err != nil {
+		return vps.Host{}, err
+	}
+	for _, h := range hosts {
+		if h.ID == id {
+			return h, nil
+		}
+	}
+	return vps.Host{}, errors.New("không tìm thấy VPS")
+}
+
+// AddVPS checks the login (and root rights) before saving, and pins the SSH host key.
+func (a *App) AddVPS(in VPSInput) (VPSView, error) {
+	h, err := hostFromInput(in)
+	if err != nil {
 		return VPSView{}, err
 	}
-	hosts = append(hosts, h)
-	if err := vps.Save(hosts); err != nil {
+	h.ID = settings.NewID()
+	if err := a.verifyLogin(&h); err != nil {
+		return VPSView{}, err
+	}
+	if err := saveHost(h); err != nil {
 		return VPSView{}, err
 	}
 	a.log(fmt.Sprintf("Đã thêm VPS %s (khoá SSH %s).", h.Name, vps.Fingerprint(h.HostKey)))
+	return viewOf(h), nil
+}
+
+// UpdateVPS edits a saved VPS. An empty password keeps the saved one. The
+// login is checked again unless only the name changed; the pinned host key is
+// kept (and enforced) while the address and port stay the same.
+func (a *App) UpdateVPS(id string, in VPSInput) (VPSView, error) {
+	old, err := loadHost(id)
+	if err != nil {
+		return VPSView{}, err
+	}
+	h, err := hostFromInput(in)
+	if err != nil {
+		return VPSView{}, err
+	}
+	h.ID = id
+	if h.Password == "" {
+		h.Password = old.Password
+	}
+	if h.Addr == old.Addr && h.Port == old.Port {
+		h.HostKey = old.HostKey
+	}
+	same := h.Addr == old.Addr && h.Port == old.Port && h.User == old.User &&
+		h.Password == old.Password && h.KeyFile == old.KeyFile
+	if !same {
+		if err := a.verifyLogin(&h); err != nil {
+			return VPSView{}, err
+		}
+	}
+	if err := saveHost(h); err != nil {
+		return VPSView{}, err
+	}
+	a.log("Đã lưu thay đổi VPS " + h.Name + ".")
+	return viewOf(h), nil
+}
+
+// TrustNewVPSKey accepts the VPS's current SSH key after the user confirmed
+// that the VPS was reinstalled (the old key no longer matches).
+func (a *App) TrustNewVPSKey(id string) (VPSView, error) {
+	h, err := loadHost(id)
+	if err != nil {
+		return VPSView{}, err
+	}
+	old := vps.Fingerprint(h.HostKey)
+	h.HostKey = ""
+	if err := a.verifyLogin(&h); err != nil {
+		return VPSView{}, err
+	}
+	if err := saveHost(h); err != nil {
+		return VPSView{}, err
+	}
+	a.log(fmt.Sprintf("VPS %s: đã chấp nhận khoá SSH mới %s (khoá cũ %s).", h.Name, vps.Fingerprint(h.HostKey), old))
 	return viewOf(h), nil
 }
 
@@ -162,21 +250,11 @@ func (a *App) PickKeyFile() (string, error) {
 
 // withVPS connects to host id and runs fn, one operation per VPS at a time.
 func (a *App) withVPS(id string, timeout time.Duration, fn func(ctx context.Context, c *vps.Client) error) error {
-	vpsMu.Lock()
-	hosts, err := vps.Load()
-	vpsMu.Unlock()
+	host, err := loadHost(id)
 	if err != nil {
 		return err
 	}
-	var h *vps.Host
-	for i := range hosts {
-		if hosts[i].ID == id {
-			h = &hosts[i]
-		}
-	}
-	if h == nil {
-		return errors.New("không tìm thấy VPS")
-	}
+	h := &host
 	if h.HostKey == "" {
 		return errors.New("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại")
 	}

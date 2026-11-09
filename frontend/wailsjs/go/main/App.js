@@ -106,6 +106,14 @@ export function ShowWindow() {
   return window['go']['main']['App']['ShowWindow']();
 }
 
+export function TrustNewVPSKey(arg1) {
+  return window['go']['main']['App']['TrustNewVPSKey'](arg1);
+}
+
+export function UpdateVPS(arg1, arg2) {
+  return window['go']['main']['App']['UpdateVPS'](arg1, arg2);
+}
+
 export function VPSAddUser(arg1, arg2) {
   return window['go']['main']['App']['VPSAddUser'](arg1, arg2);
 }

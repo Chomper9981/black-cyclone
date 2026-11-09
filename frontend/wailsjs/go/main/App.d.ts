@@ -56,6 +56,10 @@ export function SetWarpEndpoint(arg1:string,arg2:number):Promise<settings.Settin
 
 export function ShowWindow():Promise<void>;
 
+export function TrustNewVPSKey(arg1:string):Promise<main.VPSView>;
+
+export function UpdateVPS(arg1:string,arg2:main.VPSInput):Promise<main.VPSView>;
+
 export function VPSAddUser(arg1:string,arg2:string):Promise<vps.Overview>;
 
 export function VPSInstall(arg1:string,arg2:vps.InstallOptions):Promise<vps.Overview>;

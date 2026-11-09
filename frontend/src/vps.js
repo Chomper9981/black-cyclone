@@ -2,6 +2,8 @@
 import {
     ListVPS,
     AddVPS,
+    UpdateVPS,
+    TrustNewVPSKey,
     RemoveVPS,
     PickKeyFile,
     VPSOverview,
@@ -19,7 +21,10 @@ const ARM_MS = 3000;
 const OUT_MAX = 400;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-const errText = (e) => (e == null ? 'Lỗi không xác định' : typeof e === 'string' ? e : (e.message || String(e)));
+const errText = (e) => {
+    const t = e == null ? 'Lỗi không xác định' : typeof e === 'string' ? e : (e.message || String(e));
+    return t.charAt(0).toUpperCase() + t.slice(1); // Go errors start lowercase
+};
 const hostPort = (h, p) => (String(h).includes(':') ? `[${h}]` : h) + (p ? `:${p}` : '');
 
 let hosts = [];
@@ -27,6 +32,7 @@ let selected = null;
 const overviews = new Map();   // id -> {state: 'loading'|'ok'|'error', data, error}
 let op = '';                   // operation in flight on the selected VPS
 let adding = false;
+let editing = null;             // id of the VPS whose details the form is editing
 const armed = new Map();
 let outLines = [];
 let outFor = null;
@@ -65,6 +71,7 @@ function renderList() {
             `<span class="srv-main"><span class="srv-name">${esc(h.name)}</span>` +
             `<span class="srv-meta">${esc(h.user)}@${esc(hostPort(h.addr, h.port))} · ${h.auth === 'key' ? 'khoá SSH' : 'mật khẩu'}</span></span>` +
             '<span class="srv-acts">' +
+            `<button type="button" class="icon" data-act="host-edit" data-id="${esc(h.id)}" title="Sửa thông tin đăng nhập" aria-label="Sửa">✎</button>` +
             `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="host-del" data-id="${esc(h.id)}" ` +
             `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá khỏi app (server trên VPS vẫn chạy)'}" aria-label="Xoá">${delArmed ? 'xoá?' : '✕'}</button>` +
             '</span></label>';
@@ -113,6 +120,12 @@ function renderDetail() {
         html = '<div class="empty">Đang kết nối tới VPS…</div>';
     } else if (ov.state === 'error') {
         html = `<div class="ip-err">${esc(ov.error)}</div>`;
+        if (ov.error.includes('khoá SSH của VPS đã thay đổi')) {
+            const t = armed.has('trust');
+            html += '<p class="hint">Chỉ chấp nhận khoá mới nếu chính bạn vừa cài lại hệ điều hành VPS hoặc nhà cung cấp vừa đổi máy.</p>' +
+                `<div class="row"><button type="button" class="btn ghost sm danger" data-act="trust"${op ? ' disabled' : ''}>` +
+                `${op === 'trust' ? 'Đang kết nối…' : t ? 'Nhấn lần nữa: tôi vừa cài lại VPS' : 'Chấp nhận khoá mới'}</button></div>`;
+        }
     } else if (!ov.data.installed) {
         html = renderInstallForm(false);
     } else {
@@ -192,7 +205,40 @@ function renderForm() {
     el.keyRow.hidden = !key;
     el.passLabel.textContent = key ? 'Mật khẩu (của khoá hoặc sudo, nếu có)' : 'Mật khẩu';
     el.addBtn.disabled = adding;
-    el.addBtn.textContent = adding ? 'Đang kiểm tra…' : 'Kiểm tra & lưu';
+    el.addBtn.textContent = adding ? 'Đang kiểm tra…' : editing ? 'Lưu thay đổi' : 'Kiểm tra & lưu';
+    const h = editing && hosts.find((x) => x.id === editing);
+    el.summary.textContent = h ? `Sửa VPS: ${h.name}` : 'Thêm VPS';
+    el.cancelEdit.hidden = !editing;
+    el.pass.placeholder = editing ? 'để trống: giữ mật khẩu đã lưu' : '';
+}
+
+function fillForm(h) {
+    el.name.value = h ? h.name : '';
+    el.addr.value = h ? h.addr : '';
+    el.port.value = h ? h.port : 22;
+    el.user.value = h ? h.user : 'root';
+    el.key.value = h ? (h.key_file || '') : '';
+    el.pass.value = '';
+    const auth = h && h.auth === 'key' ? 'key' : 'password';
+    el.form.querySelector(`input[name="vps-auth"][value="${auth}"]`).checked = true;
+}
+
+function startEdit(id) {
+    const h = hosts.find((x) => x.id === id);
+    if (!h) return;
+    editing = id;
+    fillForm(h);
+    el.addBox.open = true;
+    setMsg(el.msg, '');
+    render();
+    el.addBox.scrollIntoView({block: 'nearest'});
+}
+
+function stopEdit() {
+    editing = null;
+    fillForm(null);
+    el.addBox.open = false;
+    render();
 }
 
 function render() {
@@ -284,19 +330,25 @@ async function onAddHost() {
     };
     if (!input.addr) { setMsg(el.msg, 'Nhập IP hoặc tên miền của VPS.', true); return; }
     if (auth === 'key' && !input.key_file) { setMsg(el.msg, 'Chọn file khoá SSH.', true); return; }
-    if (auth !== 'key' && !input.password) { setMsg(el.msg, 'Nhập mật khẩu SSH.', true); return; }
+    const old = editing && hosts.find((x) => x.id === editing);
+    // Editing: an empty password keeps the saved one (unless switching to password login).
+    if (auth !== 'key' && !input.password && !(old && old.auth === 'password')) {
+        setMsg(el.msg, 'Nhập mật khẩu SSH.', true);
+        return;
+    }
     adding = true;
     setMsg(el.msg, '');
     render();
     try {
-        const v = await AddVPS(input);
-        el.pass.value = '';
-        el.name.value = '';
-        el.addr.value = '';
+        const id = editing;
+        const v = id ? await UpdateVPS(id, input) : await AddVPS(input);
+        editing = null;
+        fillForm(null);
         el.addBox.open = false;
-        setMsg(el.msg, `Đã thêm ${v.name}. Khoá SSH của VPS: ${v.fingerprint}`);
+        setMsg(el.msg, id ? `Đã lưu ${v.name}.` : `Đã thêm ${v.name}. Khoá SSH của VPS: ${v.fingerprint}`);
+        if (id) overviews.delete(id);
         await loadHosts();
-        select(v.id);
+        if (id && selected === id) ensureLoaded(); else select(v.id);
     } catch (e) {
         setMsg(el.msg, errText(e), true);
     } finally {
@@ -306,11 +358,12 @@ async function onAddHost() {
 }
 
 async function onListClick(ev) {
-    const b = ev.target.closest('button[data-act="host-del"]');
+    const b = ev.target.closest('button[data-act]');
     if (!b) return;
     ev.preventDefault();
     ev.stopPropagation();
     const id = b.dataset.id;
+    if (b.dataset.act === 'host-edit') { startEdit(id); return; }
     const key = 'host:' + id;
     if (!armed.has(key)) { arm(key); return; }
     disarm(key);
@@ -318,6 +371,7 @@ async function onListClick(ev) {
         await RemoveVPS(id);
         overviews.delete(id);
         if (selected === id) selected = null;
+        if (editing === id) stopEdit();
         setMsg(el.msg, 'Đã xoá VPS khỏi app. Server trên VPS vẫn chạy, link của mọi người vẫn dùng được.');
         await loadHosts();
         if (selected) refresh();
@@ -383,6 +437,16 @@ async function onDetailClick(ev) {
         if (!armed.has(key)) { arm(key); return; }
         disarm(key);
         run('user-del', (id) => VPSRemoveUser(id, name), `Đã xoá ${name}: link của người này hết dùng được.`);
+        return;
+    }
+    case 'trust': {
+        if (!armed.has('trust')) { arm('trust'); return; }
+        disarm('trust');
+        run('trust', async (id) => {
+            await TrustNewVPSKey(id);
+            await loadHosts(); // shows the new fingerprint
+            return VPSOverview(id);
+        }, 'Đã chấp nhận khoá SSH mới của VPS.');
         return;
     }
     case 'restart':
@@ -466,6 +530,8 @@ export function initVPS(hooks) {
         pass: $('vps-pass'),
         passLabel: $('vps-pass-label'),
         addBtn: $('vps-add-btn'),
+        summary: $('vps-add-summary'),
+        cancelEdit: $('vps-edit-cancel'),
         detail: $('vps-detail'),
         title: $('vps-title'),
         refresh: $('vps-refresh'),
@@ -479,6 +545,7 @@ export function initVPS(hooks) {
     el.form.addEventListener('change', (ev) => { if (ev.target.name === 'vps-auth') renderForm(); });
     el.keyPick.addEventListener('click', onPickKey);
     el.addBtn.addEventListener('click', onAddHost);
+    el.cancelEdit.addEventListener('click', stopEdit);
     el.pass.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') onAddHost(); });
     el.refresh.addEventListener('click', refresh);
     el.body.addEventListener('click', onDetailClick);

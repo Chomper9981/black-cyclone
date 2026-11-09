@@ -212,7 +212,7 @@
             </div>
             <div id="vps-list" class="srv-list" role="radiogroup"></div>
             <details id="vps-add-box" class="inner">
-                <summary>Thêm VPS</summary>
+                <summary id="vps-add-summary">Thêm VPS</summary>
                 <p class="hint">Nhập thông tin nhà cung cấp VPS gửi cho bạn. App sẽ thử đăng nhập trước khi lưu.</p>
                 <label class="field"><span>Tên gợi nhớ</span>
                     <input id="vps-name" type="text" spellcheck="false" placeholder="vd. Singapore (tuỳ chọn)"></label>
@@ -241,6 +241,7 @@
                 <label class="field"><span id="vps-pass-label">Mật khẩu</span>
                     <input id="vps-pass" type="password" autocomplete="off"></label>
                 <div class="row end">
+                    <button id="vps-edit-cancel" class="link" type="button" hidden>huỷ</button>
                     <button id="vps-add-btn" class="btn sm" type="button">Kiểm tra &amp; lưu</button>
                 </div>
             </details>
