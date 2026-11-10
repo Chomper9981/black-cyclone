@@ -26,6 +26,13 @@ import {
 } from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 import {initVPS, onShowVPS, renderVPS} from './vps.js';
+import {initI18n, setLang, t, missingTranslations} from './i18n.js';
+
+// Record the page's static text before anything renders into it. Until the backend
+// reports the language in use, guess from the browser's.
+initI18n();
+setLang((navigator.language || '').toLowerCase().startsWith('vi') ? 'vi' : 'en');
+window.__i18nMissing = missingTranslations;
 
 const $ = (id) => document.getElementById(id);
 
@@ -99,6 +106,7 @@ const el = {
     startMinRow: $('start-min-row'),
     closeTray: $('close-tray'),
     notify: $('notify'),
+    langSelect: $('lang-select'),
     interruptSwitch: $('interrupt-switch'),
     openData: $('open-data'),
     quit: $('quit'),
@@ -137,7 +145,7 @@ let renaming = null;          // server id being renamed inline
 const armed = new Map();      // key -> timeout id for 2-click confirmations
 
 const errText = (e) => {
-    if (e == null) return 'Lỗi không xác định';
+    if (e == null) return t('Lỗi không xác định', 'Unknown error');
     if (typeof e === 'string') return e;
     return e.message || String(e);
 };
@@ -153,6 +161,7 @@ function normalize(s) {
     s = {...(s || {})};
     if (s.mode !== 'warp' && s.mode !== 'custom') s.mode = 'warp';
     if (!s.selected_server) s.selected_server = 'auto';
+    if (s.language !== 'vi' && s.language !== 'en') s.language = ''; // '' = follow the system
     s.servers = s.servers || [];
     s.subscriptions = s.subscriptions || [];
     const r = s.routing || {};
@@ -175,13 +184,13 @@ function fmtBytes(n) {
 }
 
 function fmtAgo(iso) {
-    const t = Date.parse(iso || '');
-    if (!t) return 'chưa cập nhật';
-    const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
-    if (s < 60) return 'vừa xong';
-    if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
-    if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
-    return `${Math.floor(s / 86400)} ngày trước`;
+    const ts = Date.parse(iso || '');
+    if (!ts) return t('chưa cập nhật', 'never updated');
+    const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if (s < 60) return t('vừa xong', 'just now');
+    if (s < 3600) return t(`${Math.floor(s / 60)} phút trước`, `${Math.floor(s / 60)} min ago`);
+    if (s < 86400) return t(`${Math.floor(s / 3600)} giờ trước`, `${Math.floor(s / 3600)} h ago`);
+    return t(`${Math.floor(s / 86400)} ngày trước`, `${Math.floor(s / 86400)} d ago`);
 }
 
 function protoOf(link) {
@@ -226,6 +235,7 @@ function disarm(key) {
 
 function fillForm(s) {
     el.modeInputs.forEach((i) => { i.checked = i.value === s.mode; });
+    el.langSelect.value = s.language || '';
     el.doh.value = s.doh_server || '';
     el.lan.checked = !!s.bypass_lan;
     el.rDirectVN.checked = !!s.routing.direct_vn;
@@ -249,6 +259,7 @@ function readForm() {
     return {
         ...settings,
         mode: checked ? checked.value : (settings?.mode || 'warp'),
+        language: el.langSelect.value,
         doh_server: el.doh.value.trim(),
         bypass_lan: el.lan.checked,
         routing: {
@@ -294,7 +305,7 @@ async function flushSave() {
     const snapshot = JSON.parse(JSON.stringify(settings));
     const p = SaveSettings(snapshot)
         .then(() => setMsg(el.saveMsg, ''))
-        .catch((e) => { setMsg(el.saveMsg, 'Không lưu được: ' + errText(e), true); throw e; });
+        .catch((e) => { setMsg(el.saveMsg, t('Không lưu được: ', 'Could not save: ') + errText(e), true); throw e; });
     savePromise = p;
     try { await p; } finally { if (savePromise === p) savePromise = null; }
 }
@@ -340,14 +351,17 @@ function renderWarnings() {
     const linux = status.os === 'linux';
     if (!status.admin) {
         parts.push(linux
-            ? '<p>App chưa có quyền tạo card mạng ảo. Cài bằng <code>linux/install.sh</code>, hoặc chạy ' +
-              '<code>sudo setcap cap_net_admin,cap_net_raw+ep</code> cho file BlackCyclone rồi mở lại.</p>'
-            : '<p>Cần chạy với quyền Administrator.</p>');
+            ? t('<p>App chưa có quyền tạo card mạng ảo. Cài bằng <code>linux/install.sh</code>, hoặc chạy ' +
+                '<code>sudo setcap cap_net_admin,cap_net_raw+ep</code> cho file BlackCyclone rồi mở lại.</p>',
+                '<p>The app may not create the virtual network device. Install it with <code>linux/install.sh</code>, or run ' +
+                '<code>sudo setcap cap_net_admin,cap_net_raw+ep</code> on the BlackCyclone binary and open it again.</p>')
+            : t('<p>Cần chạy với quyền Administrator.</p>', '<p>The app must run as Administrator.</p>'));
     }
     if (!status.bins_ok) {
         const missing = (status.missing || []).map((m) => `<li><code>${escapeHtml(m)}</code></li>`).join('');
-        parts.push(`<p>Thiếu file cần thiết${missing ? ':' : '.'}</p>${missing ? `<ul>${missing}</ul>` : ''}` +
-            `<p>Hãy chạy <code>${linux ? 'linux/fetch-bins.sh' : 'windows\\fetch-bins.ps1'}</code> rồi mở lại ứng dụng.</p>`);
+        const script = linux ? 'linux/fetch-bins.sh' : 'windows\\fetch-bins.ps1';
+        parts.push(`<p>${t('Thiếu file cần thiết', 'Required files are missing')}${missing ? ':' : '.'}</p>${missing ? `<ul>${missing}</ul>` : ''}` +
+            t(`<p>Hãy chạy <code>${script}</code> rồi mở lại ứng dụng.</p>`, `<p>Run <code>${script}</code>, then open the app again.</p>`));
     }
     el.warnings.hidden = parts.length === 0;
     el.warnings.innerHTML = parts.join('');
@@ -368,10 +382,10 @@ function renderHero() {
 
     el.pill.classList.remove('on', 'off', 'err', 'warn');
     const pill = {
-        on: ['on', 'Đã kết nối'],
-        reconnecting: ['warn', 'Đang kết nối lại…'],
-        blocked: ['err', 'Đang chặn mạng'],
-    }[state] || (errMsg ? ['err', 'Lỗi'] : ['off', 'Chưa kết nối']);
+        on: ['on', t('Đã kết nối', 'Connected')],
+        reconnecting: ['warn', t('Đang kết nối lại…', 'Reconnecting…')],
+        blocked: ['err', t('Đang chặn mạng', 'Network blocked')],
+    }[state] || (errMsg ? ['err', t('Lỗi', 'Error')] : ['off', t('Chưa kết nối', 'Not connected')]);
     el.pill.classList.add(pill[0]);
     el.pill.textContent = pill[1];
 
@@ -381,8 +395,8 @@ function renderHero() {
     el.toggle.classList.toggle('busy', busy || state === 'reconnecting');
     el.toggle.disabled = busy || !settings;
     el.toggleLabel.textContent = busy
-        ? (status.running ? 'Đang ngắt…' : 'Đang kết nối…')
-        : (status.running ? 'Ngắt kết nối' : 'Kết nối');
+        ? (status.running ? t('Đang ngắt…', 'Disconnecting…') : t('Đang kết nối…', 'Connecting…'))
+        : (status.running ? t('Ngắt kết nối', 'Disconnect') : t('Kết nối', 'Connect'));
 
     el.error.hidden = !errMsg;
     el.error.textContent = errMsg;
@@ -393,11 +407,11 @@ function renderHero() {
     if (blocking) {
         el.blocked.classList.toggle('amber', state === 'reconnecting');
         el.blockedTitle.textContent = state === 'reconnecting'
-            ? 'Đang kết nối lại — kill switch tạm chặn mạng'
-            : 'Kill switch đang chặn mạng';
+            ? t('Đang kết nối lại — kill switch tạm chặn mạng', 'Reconnecting — the kill switch is blocking the network meanwhile')
+            : t('Kill switch đang chặn mạng', 'The kill switch is blocking the network');
         el.blockedText.textContent = state === 'reconnecting'
-            ? 'VPN bị rớt. Internet bị chặn để không lộ IP thật cho tới khi kết nối lại được.'
-            : 'VPN bị rớt và không kết nối lại được. Mọi kết nối Internet đang bị chặn để không lộ IP thật. Bấm “Kết nối lại” hoặc ngắt để dùng mạng bình thường.';
+            ? t('VPN bị rớt. Internet bị chặn để không lộ IP thật cho tới khi kết nối lại được.', 'The VPN dropped. The Internet is blocked to keep your real IP hidden until it reconnects.')
+            : t('VPN bị rớt và không kết nối lại được. Mọi kết nối Internet đang bị chặn để không lộ IP thật. Bấm “Kết nối lại” hoặc ngắt để dùng mạng bình thường.', 'The VPN dropped and could not reconnect. All Internet connections are blocked to keep your real IP hidden. Click “Reconnect”, or disconnect to use the regular network.');
         el.blockedRelease.disabled = busy;
         el.blockedRetry.disabled = busy;
         el.blockedRetry.hidden = state === 'reconnecting';
@@ -406,7 +420,7 @@ function renderHero() {
     // Pending
     el.pending.hidden = !(state === 'on' && status.pending);
     el.pendingReconnect.disabled = busy;
-    el.pendingReconnect.textContent = busy ? 'Đang kết nối lại…' : 'Kết nối lại';
+    el.pendingReconnect.textContent = busy ? t('Đang kết nối lại…', 'Reconnecting…') : t('Kết nối lại', 'Reconnect');
 
     // Server in use
     const showServer = state === 'on' && status.mode === 'custom' && status.server;
@@ -429,16 +443,16 @@ function renderStats() {
 
 function renderDuration() {
     const state = connState();
-    if (state === 'reconnecting') { el.duration.textContent = 'Mất kết nối, đang thử lại…'; return; }
-    if (state === 'blocked') { el.duration.textContent = 'Mất kết nối'; return; }
+    if (state === 'reconnecting') { el.duration.textContent = t('Mất kết nối, đang thử lại…', 'Connection lost, retrying…'); return; }
+    if (state === 'blocked') { el.duration.textContent = t('Mất kết nối', 'Connection lost'); return; }
     if (state !== 'on') { el.duration.innerHTML = '&nbsp;'; return; }
     const since = status.since ? Date.parse(status.since) : NaN;
-    if (!since || Number.isNaN(since)) { el.duration.textContent = 'Đang chạy'; return; }
+    if (!since || Number.isNaN(since)) { el.duration.textContent = t('Đang chạy', 'Running'); return; }
     let s = Math.max(0, Math.floor((Date.now() - since) / 1000));
     const h = Math.floor(s / 3600); s -= h * 3600;
     const m = Math.floor(s / 60); s -= m * 60;
     const pad = (n) => String(n).padStart(2, '0');
-    el.duration.textContent = `Đã kết nối ${h > 0 ? h + ':' : ''}${pad(m)}:${pad(s)}`;
+    el.duration.textContent = `${t('Đã kết nối', 'Connected')} ${h > 0 ? h + ':' : ''}${pad(m)}:${pad(s)}`;
 }
 
 function renderModes() {
@@ -454,8 +468,8 @@ function renderModes() {
 function warpTypeLabel(t) {
     switch (t) {
     case 'unlimited': return ['WARP+', 'plus'];
-    case 'limited': return ['WARP+ (giới hạn)', 'plus'];
-    case 'free': case '': case undefined: return ['Miễn phí', ''];
+    case 'limited': return [t('WARP+ (giới hạn)', 'WARP+ (limited)'), 'plus'];
+    case 'free': case '': case undefined: return [t('Miễn phí', 'Free'), ''];
     default: return [t, ''];
     }
 }
@@ -469,10 +483,10 @@ function renderWarp() {
 
     const regBusy = isBusy('register');
     el.warpRegister.disabled = regBusy;
-    el.warpRegister.textContent = regBusy ? 'Đang đăng ký…' : 'Đăng ký WARP';
+    el.warpRegister.textContent = regBusy ? t('Đang đăng ký…', 'Registering…') : t('Đăng ký WARP', 'Register WARP');
     el.warpReregister.disabled = regBusy;
-    el.warpReregister.textContent = regBusy ? 'đang đăng ký…'
-        : armed.has('rereg') ? 'nhấn lần nữa để xác nhận' : 'đăng ký lại';
+    el.warpReregister.textContent = regBusy ? t('đang đăng ký…', 'registering…')
+        : armed.has('rereg') ? t('nhấn lần nữa để xác nhận', 'click again to confirm') : t('đăng ký lại', 'register again');
     if (!has) return;
 
     const [label, cls] = warpTypeLabel(w.account_type);
@@ -481,20 +495,20 @@ function renderWarp() {
 
     const licBusy = isBusy('license');
     el.warpKeyApply.disabled = licBusy || !el.warpKey.value.trim();
-    el.warpKeyApply.textContent = licBusy ? 'Đang áp dụng…' : 'Áp dụng';
+    el.warpKeyApply.textContent = licBusy ? t('Đang áp dụng…', 'Applying…') : t('Áp dụng', 'Apply');
 
-    el.warpEndpoint.textContent = w.endpoint ? hostPort(w.endpoint, w.endpoint_port) : 'Mặc định';
+    el.warpEndpoint.textContent = w.endpoint ? hostPort(w.endpoint, w.endpoint_port) : t('Mặc định', 'Default');
 
     const tunneled = status.running;
     const scanBusy = isBusy('scan');
     el.warpScan.disabled = tunneled || scanBusy;
-    el.warpScan.textContent = scanBusy ? 'Đang quét… (~30s)' : 'Quét endpoint';
-    el.warpScanHint.textContent = tunneled ? 'Ngắt kết nối trước khi quét' : '';
+    el.warpScan.textContent = scanBusy ? t('Đang quét… (~30s)', 'Scanning… (~30s)') : t('Quét endpoint', 'Scan endpoints');
+    el.warpScanHint.textContent = tunneled ? t('Ngắt kết nối trước khi quét', 'Disconnect before scanning') : '';
 
     el.warpScanList.hidden = !scanResults;
     if (scanResults) {
         if (scanResults.length === 0) {
-            setHTML(el.warpScanList, '<div class="empty">Không có endpoint nào phản hồi.</div>');
+            setHTML(el.warpScanList, `<div class="empty">${t('Không có endpoint nào phản hồi.', 'No endpoint answered.')}</div>`);
         } else {
             const epBusy = isBusy('endpoint');
             setHTML(el.warpScanList, scanResults.map((r, i) => {
@@ -517,8 +531,8 @@ function msClass(ms) {
 function pingBadge(id) {
     if (!(id in pings)) return '';
     const ms = pings[id];
-    if (ms === -1) return '<span class="ms bad">lỗi</span>';
-    if (ms === -2) return '<span class="ms na" title="Không đo được giao thức UDP khi chưa kết nối">—</span>';
+    if (ms === -1) return `<span class="ms bad">${t('lỗi', 'failed')}</span>`;
+    if (ms === -2) return `<span class="ms na" title="${t('Không đo được giao thức UDP khi chưa kết nối', 'UDP protocols cannot be measured while disconnected')}">—</span>`;
     return `<span class="ms ${msClass(ms)}">${escapeHtml(ms)} ms</span>`;
 }
 
@@ -534,8 +548,8 @@ function renderServers() {
     rows.push(
         `<label class="srv${sel === 'auto' ? ' sel' : ''}">` +
         `<input type="radio" name="srv" value="auto"${sel === 'auto' ? ' checked' : ''}>` +
-        '<span class="srv-main"><span class="srv-name">Tự động (nhanh nhất)</span>' +
-        '<span class="srv-meta">Chọn server có độ trễ thấp nhất</span></span></label>');
+        `<span class="srv-main"><span class="srv-name">${t('Tự động (nhanh nhất)', 'Auto (fastest)')}</span>` +
+        `<span class="srv-meta">${t('Chọn server có độ trễ thấp nhất', 'Uses the server with the lowest latency')}</span></span></label>`);
     for (const s of settings.servers) {
         const id = escapeHtml(s.id);
         const isSel = sel === s.id;
@@ -546,7 +560,7 @@ function renderServers() {
             main = `<span class="srv-main"><input class="srv-rename" type="text" data-id="${id}" value="${escapeHtml(s.name)}" spellcheck="false"></span>`;
         } else {
             main = '<span class="srv-main">' +
-                `<span class="srv-name" title="${escapeHtml(s.name)}">${escapeHtml(s.name || '(không tên)')}</span>` +
+                `<span class="srv-name" title="${escapeHtml(s.name)}">${escapeHtml(s.name || t('(không tên)', '(no name)'))}</span>` +
                 `<span class="srv-meta"><span class="proto">${escapeHtml(protoOf(s.link))}</span>` +
                 (from ? `<span class="from">${escapeHtml(from)}</span>` : '') + '</span></span>';
         }
@@ -556,13 +570,13 @@ function renderServers() {
             main +
             pingBadge(s.id) +
             '<span class="srv-acts">' +
-            `<button type="button" class="icon" data-act="rename" data-id="${id}" title="Đổi tên" aria-label="Đổi tên">✎</button>` +
+            `<button type="button" class="icon" data-act="rename" data-id="${id}" title="${t('Đổi tên', 'Rename')}" aria-label="${t('Đổi tên', 'Rename')}">✎</button>` +
             `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="del" data-id="${id}" ` +
-            `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá'}" aria-label="Xoá">${delArmed ? 'xoá?' : '✕'}</button>` +
+            `title="${delArmed ? t('Nhấn lần nữa để xoá', 'Click again to remove') : t('Xoá', 'Remove')}" aria-label="${t('Xoá', 'Remove')}">${delArmed ? t('xoá?', 'remove?') : '✕'}</button>` +
             '</span></label>');
     }
     if (settings.servers.length === 0) {
-        rows.push('<div class="empty">Chưa có server. Thêm link hoặc subscription bên dưới.</div>');
+        rows.push(`<div class="empty">${t('Chưa có server. Thêm link hoặc subscription bên dưới.', 'No servers yet. Add a link or a subscription below.')}</div>`);
     }
     const changed = setHTML(el.srvList, rows.join(''));
     if (renaming && changed) {
@@ -572,10 +586,10 @@ function renderServers() {
 
     const pingBusy = isBusy('ping');
     el.srvPing.disabled = pingBusy || settings.servers.length === 0;
-    el.srvPing.textContent = pingBusy ? 'đang ping…' : 'ping';
+    el.srvPing.textContent = pingBusy ? t('đang ping…', 'pinging…') : 'ping';
     const addBusy = isBusy('add');
     el.srvAddBtn.disabled = addBusy;
-    el.srvAddBtn.textContent = addBusy ? 'Đang thêm…' : 'Thêm';
+    el.srvAddBtn.textContent = addBusy ? t('Đang thêm…', 'Adding…') : t('Thêm', 'Add');
 }
 
 function renderSubs() {
@@ -584,22 +598,22 @@ function renderSubs() {
     for (const s of settings.servers) if (s.sub_id) counts.set(s.sub_id, (counts.get(s.sub_id) || 0) + 1);
     const subs = settings.subscriptions;
     setHTML(el.subList, subs.length === 0
-        ? '<div class="empty">Chưa có subscription.</div>'
+        ? `<div class="empty">${t('Chưa có subscription.', 'No subscriptions yet.')}</div>`
         : subs.map((s) => {
             const delArmed = armed.has('sub:' + s.id);
             return '<div class="sub-row">' +
                 `<span class="srv-main"><span class="srv-name" title="${escapeHtml(s.url)}">${escapeHtml(s.name)}</span>` +
                 `<span class="srv-meta">${counts.get(s.id) || 0} server · ${escapeHtml(fmtAgo(s.updated))}</span></span>` +
                 `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="sub-del" data-id="${escapeHtml(s.id)}" ` +
-                `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá subscription và server của nó'}" aria-label="Xoá">${delArmed ? 'xoá?' : '✕'}</button>` +
+                `title="${delArmed ? t('Nhấn lần nữa để xoá', 'Click again to remove') : t('Xoá subscription và server của nó', 'Remove the subscription and its servers')}" aria-label="${t('Xoá', 'Remove')}">${delArmed ? t('xoá?', 'remove?') : '✕'}</button>` +
                 '</div>';
         }).join(''));
     const refBusy = isBusy('sub-refresh');
     el.subRefresh.disabled = refBusy || subs.length === 0;
-    el.subRefresh.textContent = refBusy ? 'đang cập nhật…' : 'cập nhật tất cả';
+    el.subRefresh.textContent = refBusy ? t('đang cập nhật…', 'updating…') : t('cập nhật tất cả', 'update all');
     const addBusy = isBusy('sub-add');
     el.subAddBtn.disabled = addBusy;
-    el.subAddBtn.textContent = addBusy ? 'Đang tải…' : 'Thêm';
+    el.subAddBtn.textContent = addBusy ? t('Đang tải…', 'Downloading…') : t('Thêm', 'Add');
 }
 
 function renderOptions() {
@@ -608,7 +622,7 @@ function renderOptions() {
 
     const checkBusy = isBusy('check');
     el.checkBtn.disabled = checkBusy;
-    el.checkBtn.textContent = checkBusy ? 'Đang kiểm tra…' : 'Kiểm tra kết nối';
+    el.checkBtn.textContent = checkBusy ? t('Đang kiểm tra…', 'Checking…') : t('Kiểm tra kết nối', 'Check connection');
 }
 
 function render() {
@@ -628,6 +642,7 @@ function applyStatus(st) {
     if (!st) return;
     status = {...status, ...st, missing: st.missing || [], warnings: st.warnings || []};
     applyOS(status.os);
+    setLang(status.lang); // the backend resolves "auto" to the system language
     if (connState() !== 'on') stats = null;
     render();
 }
@@ -701,13 +716,13 @@ async function onRegisterWarp() {
         const s = await runAction('register', RegisterWarp);
         // RegisterWarp reports failure only in the log and returns the old settings.
         if (s && s.warp && s.warp.private_key && s.warp.private_key !== before) {
-            setMsg(el.warpMsg, 'Đăng ký WARP thành công.' + (status.running && status.mode === 'warp' ? ' Kết nối lại để dùng tài khoản mới.' : ''));
+            setMsg(el.warpMsg, t('Đăng ký WARP thành công.', 'WARP registered.') + (status.running && status.mode === 'warp' ? t(' Kết nối lại để dùng tài khoản mới.', ' Reconnect to use the new account.') : ''));
             scanResults = null;
         } else {
-            setMsg(el.warpMsg, 'Đăng ký thất bại — xem nhật ký để biết chi tiết.', true);
+            setMsg(el.warpMsg, t('Đăng ký thất bại — xem nhật ký để biết chi tiết.', 'Registration failed — see the log for details.'), true);
         }
     } catch (e) {
-        setMsg(el.warpMsg, 'Đăng ký thất bại: ' + errText(e), true);
+        setMsg(el.warpMsg, t('Đăng ký thất bại: ', 'Registration failed: ') + errText(e), true);
     }
     render();
 }
@@ -724,9 +739,9 @@ async function onApplyLicense() {
     try {
         const s = await runAction('license', () => ApplyWarpLicense(key));
         el.warpKey.value = '';
-        setMsg(el.warpMsg, 'Đã áp dụng key. Loại tài khoản: ' + warpTypeLabel(s?.warp?.account_type)[0] + '.');
+        setMsg(el.warpMsg, t('Đã áp dụng key. Loại tài khoản: ', 'Key applied. Account type: ') + warpTypeLabel(s?.warp?.account_type)[0] + '.');
     } catch (e) {
-        setMsg(el.warpMsg, 'Không áp dụng được key: ' + errText(e), true);
+        setMsg(el.warpMsg, t('Không áp dụng được key: ', 'Could not apply the key: ') + errText(e), true);
     }
     render();
 }
@@ -739,7 +754,7 @@ async function onScan() {
     try {
         scanResults = (await ScanWarpEndpoints()) || [];
     } catch (e) {
-        setMsg(el.warpMsg, 'Quét thất bại: ' + errText(e), true);
+        setMsg(el.warpMsg, t('Quét thất bại: ', 'Scan failed: ') + errText(e), true);
     } finally {
         ops.delete('scan');
         render();
@@ -753,9 +768,9 @@ async function onPickEndpoint(ev) {
     if (!r) return;
     try {
         await runAction('endpoint', () => SetWarpEndpoint(r.ip, r.port));
-        setMsg(el.warpMsg, `Đã chọn endpoint ${hostPort(r.ip, r.port)}.`);
+        setMsg(el.warpMsg, t(`Đã chọn endpoint ${hostPort(r.ip, r.port)}.`, `Endpoint ${hostPort(r.ip, r.port)} selected.`));
     } catch (e) {
-        setMsg(el.warpMsg, 'Không đặt được endpoint: ' + errText(e), true);
+        setMsg(el.warpMsg, t('Không đặt được endpoint: ', 'Could not set the endpoint: ') + errText(e), true);
     }
     render();
 }
@@ -786,7 +801,7 @@ function onServerClick(ev) {
         delete pings[id];
         runAction('del', () => RemoveServer(id))
             .then(() => setMsg(el.srvMsg, ''))
-            .catch((e) => setMsg(el.srvMsg, 'Không xoá được: ' + errText(e), true));
+            .catch((e) => setMsg(el.srvMsg, t('Không xoá được: ', 'Could not remove: ') + errText(e), true));
     }
 }
 
@@ -804,7 +819,7 @@ async function commitRename(inp, save) {
             await runAction('rename', () => RenameServer(id, name));
         }
     } catch (e) {
-        setMsg(el.srvMsg, 'Không đổi tên được: ' + errText(e), true);
+        setMsg(el.srvMsg, t('Không đổi tên được: ', 'Could not rename: ') + errText(e), true);
     } finally {
         renameCommitting = false;
         render();
@@ -831,9 +846,9 @@ async function onAddServers() {
         const added = (s?.servers?.length || 0) - before;
         if (added > 0) {
             el.srvAdd.value = '';
-            setMsg(el.srvMsg, `Đã thêm ${added} server.`);
+            setMsg(el.srvMsg, t(`Đã thêm ${added} server.`, `Added ${added} server(s).`));
         } else {
-            setMsg(el.srvMsg, 'Không thêm được server nào (link không hỗ trợ hoặc đã có).', true);
+            setMsg(el.srvMsg, t('Không thêm được server nào (link không hỗ trợ hoặc đã có).', 'No server was added (unsupported link, or already in the list).'), true);
         }
     } catch (e) {
         setMsg(el.srvMsg, errText(e), true);
@@ -849,7 +864,7 @@ async function onPing() {
     try {
         pings = (await PingServers()) || {};
     } catch (e) {
-        setMsg(el.srvMsg, 'Ping thất bại: ' + errText(e), true);
+        setMsg(el.srvMsg, t('Ping thất bại: ', 'Ping failed: ') + errText(e), true);
     } finally {
         ops.delete('ping');
         render();
@@ -862,7 +877,7 @@ async function onAddSub() {
     const url = el.subUrl.value.trim();
     if (!url || isBusy('sub-add')) return;
     if (!/^https?:\/\//i.test(url)) {
-        setMsg(el.subMsg, 'URL phải bắt đầu bằng http:// hoặc https://', true);
+        setMsg(el.subMsg, t('URL phải bắt đầu bằng http:// hoặc https://', 'The URL must start with http:// or https://'), true);
         return;
     }
     setMsg(el.subMsg, '');
@@ -870,9 +885,9 @@ async function onAddSub() {
         await runAction('sub-add', () => AddSubscription(url, el.subName.value.trim()));
         el.subUrl.value = '';
         el.subName.value = '';
-        setMsg(el.subMsg, 'Đã thêm subscription.');
+        setMsg(el.subMsg, t('Đã thêm subscription.', 'Subscription added.'));
     } catch (e) {
-        setMsg(el.subMsg, 'Không tải được subscription: ' + errText(e), true);
+        setMsg(el.subMsg, t('Không tải được subscription: ', 'Could not download the subscription: ') + errText(e), true);
     }
     render();
 }
@@ -882,9 +897,9 @@ async function onRefreshSubs() {
     setMsg(el.subMsg, '');
     try {
         await runAction('sub-refresh', RefreshSubscriptions);
-        setMsg(el.subMsg, 'Đã cập nhật.');
+        setMsg(el.subMsg, t('Đã cập nhật.', 'Updated.'));
     } catch (e) {
-        setMsg(el.subMsg, 'Cập nhật lỗi: ' + errText(e), true);
+        setMsg(el.subMsg, t('Cập nhật lỗi: ', 'Update failed: ') + errText(e), true);
     }
     render();
 }
@@ -898,12 +913,12 @@ function onSubClick(ev) {
     disarm(key);
     runAction('sub-del', () => RemoveSubscription(id))
         .then(() => setMsg(el.subMsg, ''))
-        .catch((e) => setMsg(el.subMsg, 'Không xoá được: ' + errText(e), true));
+        .catch((e) => setMsg(el.subMsg, t('Không xoá được: ', 'Could not remove: ') + errText(e), true));
 }
 
 /* ---------------- Tools ---------------- */
 
-const WARP_FLAG = {on: 'WARP', plus: 'WARP+', off: 'không'};
+const warpFlag = (v) => ({on: 'WARP', plus: 'WARP+', off: t('không', 'off')}[v]);
 
 async function onCheck() {
     if (isBusy('check')) return;
@@ -913,12 +928,12 @@ async function onCheck() {
         const r = await CheckConnection();
         const ip = r?.ip || {};
         const head = ip.error
-            ? `<div class="ip-err">Không lấy được IP: ${escapeHtml(ip.error)}</div>`
+            ? `<div class="ip-err">${t('Không lấy được IP', 'Could not get the IP')}: ${escapeHtml(ip.error)}</div>`
             : '<div class="ip-grid">' +
               `<span>IP</span><code>${escapeHtml(ip.ip || '?')}</code>` +
-              `<span>Quốc gia</span><b>${escapeHtml(ip.country || '?')}</b>` +
+              `<span>${t('Quốc gia', 'Country')}</span><b>${escapeHtml(ip.country || '?')}</b>` +
               `<span>Cloudflare</span><b>${escapeHtml(ip.colo || '?')}</b>` +
-              `<span>WARP</span><b>${escapeHtml(WARP_FLAG[ip.warp] || ip.warp || '?')}</b></div>`;
+              `<span>WARP</span><b>${escapeHtml(warpFlag(ip.warp) || ip.warp || '?')}</b></div>`;
         const sites = (r?.sites || []).map((s) =>
             `<div class="site ${s.ok ? 'ok' : 'bad'}">` +
             `<span class="mark">${s.ok ? '✓' : '✗'}</span>` +
@@ -1006,10 +1021,14 @@ el.subAddBtn.addEventListener('click', onAddSub);
 el.subUrl.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') onAddSub(); });
 
 el.checkBtn.addEventListener('click', onCheck);
-el.openData.addEventListener('click', () => OpenDataFolder().catch((e) => appendLog('Không mở được thư mục: ' + errText(e))));
+el.openData.addEventListener('click', () => OpenDataFolder().catch((e) => appendLog(t('Không mở được thư mục: ', 'Could not open the folder: ') + errText(e))));
 el.quit.addEventListener('click', () => { flushSave().catch(() => {}).finally(() => Quit()); });
 
 el.modeInputs.forEach((i) => i.addEventListener('change', onFormChange));
+el.langSelect.addEventListener('change', () => {
+    onFormChange();
+    flushSave().catch(() => {}); // apply now: the backend answers with the new language
+});
 [el.lan, el.rDirectVN, el.killSwitch, el.autoReconnect, el.autoConnect,
     el.startWin, el.startMin, el.closeTray, el.notify, el.interruptSwitch].forEach((i) => i.addEventListener('change', onFormChange));
 [el.doh, el.rDirectDomains, el.rProxyDomains, el.rDirectProcs]
@@ -1040,7 +1059,7 @@ initVPS({
     importLinks: async (text) => {
         const before = settings?.servers?.length || 0;
         const s = await runAction('add', () => AddServers(text));
-        if ((s?.servers?.length || 0) <= before) throw new Error('Link này đã có trong app.');
+        if ((s?.servers?.length || 0) <= before) throw new Error(t('Link này đã có trong app.', 'This link is already in the app.'));
     },
 });
 
@@ -1060,7 +1079,7 @@ async function init() {
         settings = normalize(await GetSettings());
         fillForm(settings);
     } catch (e) {
-        callError = 'Không đọc được cấu hình: ' + errText(e);
+        callError = t('Không đọc được cấu hình: ', 'Could not read the settings: ') + errText(e);
     }
     await pollStatus();
     render();
