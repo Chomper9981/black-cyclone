@@ -54,11 +54,18 @@ def render(size: int, out: Path, style: str = "", pad: float = 0.0) -> bytes:
             f'style="display:block;margin:{off}px 0 0 {off}px;{style}"></body></html>',
             encoding="utf-8")
         png = Path(tmp) / "icon.png"
-        subprocess.run([
+        cmd = [
             browser(), "--headless", "--disable-gpu", "--hide-scrollbars",
             "--allow-file-access-from-files", "--default-background-color=00000000",
             f"--window-size={size},{size}", f"--screenshot={png}", page.as_uri(),
-        ], check=True, capture_output=True, timeout=60)
+        ]
+        for attempt in range(4):  # a headless browser occasionally hangs: try again
+            try:
+                subprocess.run(cmd, check=True, capture_output=True, timeout=25)
+                break
+            except subprocess.TimeoutExpired:
+                if attempt == 3:
+                    raise
         data = png.read_bytes()
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
