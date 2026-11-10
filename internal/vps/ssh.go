@@ -186,7 +186,8 @@ func (c *Client) Run(ctx context.Context, script string, onLine func(string)) (s
 	}
 	defer sess.Close()
 
-	cmd := "bash -c " + quote(script)
+	// bcserver answers in the app's language.
+	cmd := "bash -c " + quote("export BC_LANG="+i18n.Lang()+"; "+script)
 	if c.host.User != "root" {
 		if c.host.Password != "" {
 			// -S reads the password from stdin; NOPASSWD sudo simply ignores it.
