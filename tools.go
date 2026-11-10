@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/nettest"
 	"black-cyclone/internal/settings"
 	"black-cyclone/internal/share"
@@ -19,10 +20,10 @@ import (
 /* ---------------- WARP ---------------- */
 
 func (a *App) RegisterWarp() (settings.Settings, error) {
-	a.log("Đang đăng ký tài khoản Cloudflare WARP…")
+	a.log(i18n.T("Đang đăng ký tài khoản Cloudflare WARP…", "Registering a Cloudflare WARP account…"))
 	w, err := warp.Register()
 	if err != nil {
-		a.log("Đăng ký WARP thất bại: " + err.Error())
+		a.log(i18n.T("Đăng ký WARP thất bại: ", "WARP registration failed: ") + err.Error())
 		s, _ := settings.Load()
 		return s, err
 	}
@@ -35,7 +36,7 @@ func (a *App) RegisterWarp() (settings.Settings, error) {
 		return nil
 	})
 	if err == nil {
-		a.log("Đăng ký WARP thành công.")
+		a.log(i18n.T("Đăng ký WARP thành công.", "WARP registered."))
 	}
 	return s, err
 }
@@ -45,12 +46,12 @@ func (a *App) ApplyWarpLicense(key string) (settings.Settings, error) {
 	key = strings.TrimSpace(key)
 	return a.mutateSettings(func(s *settings.Settings) error {
 		if s.Warp == nil {
-			return errors.New("chưa đăng ký WARP")
+			return errors.New(i18n.T("chưa đăng ký WARP", "WARP is not registered yet"))
 		}
 		if err := warp.ApplyLicense(s.Warp, key); err != nil {
 			return err
 		}
-		a.log("Đã áp dụng key WARP+, loại tài khoản: " + s.Warp.AccountType)
+		a.log(i18n.T("Đã áp dụng key WARP+, loại tài khoản: ", "WARP+ key applied, account type: ") + s.Warp.AccountType)
 		return nil
 	})
 }
@@ -69,15 +70,15 @@ func (a *App) ScanWarpEndpoints() ([]ScanResult, error) {
 		return nil, err
 	}
 	if s.Warp == nil {
-		return nil, errors.New("chưa đăng ký WARP")
+		return nil, errors.New(i18n.T("chưa đăng ký WARP", "WARP is not registered yet"))
 	}
 	a.mu.Lock()
 	tunneled := a.state != StateOff
 	a.mu.Unlock()
 	if tunneled {
-		return nil, errors.New("hãy ngắt kết nối trước khi quét (đang đi qua tunnel)")
+		return nil, errors.New(i18n.T("hãy ngắt kết nối trước khi quét (đang đi qua tunnel)", "disconnect before scanning (traffic is going through the tunnel)"))
 	}
-	a.log("Đang quét endpoint WARP…")
+	a.log(i18n.T("Đang quét endpoint WARP…", "Scanning WARP endpoints…"))
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	var out []ScanResult
@@ -86,7 +87,7 @@ func (a *App) ScanWarpEndpoints() ([]ScanResult, error) {
 			out = append(out, ScanResult{IP: r.IP, Port: r.Port, Ms: r.RTT.Milliseconds()})
 		}
 	}
-	a.log(fmt.Sprintf("Quét xong: %d endpoint phản hồi.", len(out)))
+	a.log(fmt.Sprintf(i18n.T("Quét xong: %d endpoint phản hồi.", "Scan finished: %d endpoint(s) answered."), len(out)))
 	if len(out) > 20 {
 		out = out[:20]
 	}
@@ -97,7 +98,7 @@ func (a *App) ScanWarpEndpoints() ([]ScanResult, error) {
 func (a *App) SetWarpEndpoint(ip string, port int) (settings.Settings, error) {
 	return a.mutateSettings(func(s *settings.Settings) error {
 		if s.Warp == nil {
-			return errors.New("chưa đăng ký WARP")
+			return errors.New(i18n.T("chưa đăng ký WARP", "WARP is not registered yet"))
 		}
 		s.Warp.Endpoint, s.Warp.EndpointPort = ip, port
 		return nil
@@ -111,7 +112,7 @@ func (a *App) AddServers(text string) (settings.Settings, error) {
 	links := share.ParseLinks(text)
 	if len(links) == 0 {
 		s, _ := settings.Load()
-		return s, errors.New("không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)")
+		return s, errors.New(i18n.T("không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)", "no valid link found (vless, vmess, trojan, ss, hysteria2, tuic)"))
 	}
 	var bad []string
 	s, err := a.mutateSettings(func(s *settings.Settings) error {
@@ -132,13 +133,13 @@ func (a *App) AddServers(text string) (settings.Settings, error) {
 			}
 		}
 		if added == 0 && len(bad) > 0 {
-			return errors.New("link không hợp lệ: " + bad[0])
+			return errors.New(i18n.T("link không hợp lệ: ", "invalid link: ") + bad[0])
 		}
-		a.log(fmt.Sprintf("Đã thêm %d server.", added))
+		a.log(fmt.Sprintf(i18n.T("Đã thêm %d server.", "Added %d server(s)."), added))
 		return nil
 	})
 	for _, b := range bad {
-		a.log("Bỏ qua link: " + b)
+		a.log(i18n.T("Bỏ qua link: ", "Skipped link: ") + b)
 	}
 	return s, err
 }
@@ -184,14 +185,14 @@ func (a *App) AddSubscription(url, name string) (settings.Settings, error) {
 	url = strings.TrimSpace(url)
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		s, _ := settings.Load()
-		return s, errors.New("URL subscription phải bắt đầu bằng http:// hoặc https://")
+		return s, errors.New(i18n.T("URL subscription phải bắt đầu bằng http:// hoặc https://", "the subscription URL must start with http:// or https://"))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	a.log("Đang tải subscription…")
+	a.log(i18n.T("Đang tải subscription…", "Downloading subscription…"))
 	fresh, err := subscription.Fetch(ctx, url)
 	if err != nil {
-		a.log("Tải subscription thất bại: " + err.Error())
+		a.log(i18n.T("Tải subscription thất bại: ", "Subscription download failed: ") + err.Error())
 		s, _ := settings.Load()
 		return s, err
 	}
@@ -237,7 +238,7 @@ func (a *App) RefreshSubscriptions() (settings.Settings, error) {
 			}
 			sub := &s.Subscriptions[i]
 			if r := results[i]; r.err != nil {
-				a.log(fmt.Sprintf("Subscription %q lỗi: %v", sub.Name, r.err))
+				a.log(fmt.Sprintf(i18n.T("Subscription %q lỗi: %v", "Subscription %q failed: %v"), sub.Name, r.err))
 				if firstErr == nil {
 					firstErr = fmt.Errorf("%s: %w", sub.Name, r.err)
 				}

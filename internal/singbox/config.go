@@ -3,6 +3,7 @@ package singbox
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/settings"
 )
 
@@ -66,7 +68,7 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 	switch s.Mode {
 	case settings.ModeWarp:
 		if s.Warp == nil || s.Warp.PrivateKey == "" {
-			return nil, nil, fmt.Errorf("chưa đăng ký WARP")
+			return nil, nil, errors.New(i18n.T("chưa đăng ký WARP", "WARP is not registered yet"))
 		}
 		endpoints = append(endpoints, warpEndpoint(s.Warp))
 	case settings.ModeCustom:
@@ -77,7 +79,7 @@ func Build(s settings.Settings, o Options) ([]byte, []string, error) {
 		outbounds = append(outbounds, obs...)
 		warnings = w
 	default:
-		return nil, nil, fmt.Errorf("mode không hợp lệ: %q", s.Mode)
+		return nil, nil, fmt.Errorf(i18n.T("mode không hợp lệ: %q", "invalid mode: %q"), s.Mode)
 	}
 
 	rules := []any{
@@ -204,7 +206,7 @@ func serverOutbounds(s settings.Settings) ([]any, []string, error) {
 		tag := ServerTag(srv.ID)
 		ob, err := ParseLink(srv.Link, tag)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("bỏ qua server %q: %v", srv.Name, err))
+			warnings = append(warnings, fmt.Sprintf(i18n.T("bỏ qua server %q: %v", "skipped server %q: %v"), srv.Name, err))
 			continue
 		}
 		obs = append(obs, ob)
@@ -215,9 +217,9 @@ func serverOutbounds(s settings.Settings) ([]any, []string, error) {
 	}
 	if len(tags) == 0 {
 		if len(warnings) > 0 {
-			return nil, nil, fmt.Errorf("không có server dùng được: %s", warnings[0])
+			return nil, nil, fmt.Errorf(i18n.T("không có server dùng được: %s", "no usable server: %s"), warnings[0])
 		}
-		return nil, nil, fmt.Errorf("chưa có server nào: hãy thêm link hoặc subscription")
+		return nil, nil, errors.New(i18n.T("chưa có server nào: hãy thêm link hoặc subscription", "no servers yet: add a link or a subscription"))
 	}
 	choices := tags
 	if len(tags) > 1 {
@@ -266,7 +268,7 @@ func geoipVN(binDir string) map[string]any {
 func dohServer(raw string) (map[string]any, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" {
-		return nil, fmt.Errorf("DoH server phải có dạng https://host/dns-query, nhận %q", raw)
+		return nil, fmt.Errorf(i18n.T("DoH server phải có dạng https://host/dns-query, nhận %q", "the DoH server must look like https://host/dns-query, got %q"), raw)
 	}
 	srv := map[string]any{"type": "https", "server": u.Hostname()}
 	if u.Path != "" && u.Path != "/dns-query" {
@@ -275,7 +277,7 @@ func dohServer(raw string) (map[string]any, error) {
 	if p := u.Port(); p != "" {
 		port, err := strconv.Atoi(p)
 		if err != nil {
-			return nil, fmt.Errorf("DoH port không hợp lệ: %q", p)
+			return nil, fmt.Errorf(i18n.T("DoH port không hợp lệ: %q", "invalid DoH port: %q"), p)
 		}
 		srv["server_port"] = port
 	}

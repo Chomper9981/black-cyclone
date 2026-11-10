@@ -18,6 +18,7 @@ import (
 
 	"black-cyclone/internal/autostart"
 	"black-cyclone/internal/clash"
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/runner"
 	"black-cyclone/internal/settings"
 	"black-cyclone/internal/singbox"
@@ -39,7 +40,8 @@ type Status struct {
 	Mode     string   `json:"mode"`
 	Since    string   `json:"since"`
 	Admin    bool     `json:"admin"`
-	OS       string   `json:"os"` // runtime.GOOS: the UI adapts labels and hints
+	OS       string   `json:"os"`   // runtime.GOOS: the UI adapts labels and hints
+	Lang     string   `json:"lang"` // "vi" or "en": the language in use (setting, or the system's)
 	BinsOK   bool     `json:"bins_ok"`
 	Missing  []string `json:"missing"`
 	Error    string   `json:"error"`
@@ -95,15 +97,21 @@ func NewApp(autostart bool) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Language first, so everything logged below is in it.
+	if s, err := settings.Load(); err == nil {
+		i18n.Set(s.Language)
+	} else {
+		i18n.Set("")
+	}
 	// Mirror the UI log to %APPDATA%\BlackCyclone\app.log (fresh file each launch).
 	if dir, err := settings.Dir(); err == nil {
 		if f, err := os.Create(filepath.Join(dir, "app.log")); err == nil {
 			a.logFile = f
 		}
 	}
-	a.log(fmt.Sprintf("Black Cyclone khởi động, admin=%v, bin=%s", isAdmin(), runner.BinDir()))
+	a.log(fmt.Sprintf(i18n.T("Black Cyclone khởi động, admin=%v, bin=%s", "Black Cyclone started, admin=%v, bin=%s"), isAdmin(), runner.BinDir()))
 	if n, err := runner.KillStale(runner.BinDir()); n > 0 || err != nil {
-		a.log(fmt.Sprintf("Dọn %d tiến trình cũ còn sót (err=%v)", n, err))
+		a.log(fmt.Sprintf(i18n.T("Dọn %d tiến trình cũ còn sót (err=%v)", "Cleaned up %d leftover process(es) (err=%v)"), n, err))
 	}
 	_ = runtime.InitializeNotifications(ctx)
 
@@ -112,7 +120,7 @@ func (a *App) startup(ctx context.Context) {
 		Toggle: a.toggle,
 		Quit:   a.Quit,
 	})
-	tray.SetState(false, "Black Cyclone: chưa kết nối")
+	tray.SetState(false, i18n.T("Black Cyclone: chưa kết nối", "Black Cyclone: not connected"))
 
 	go a.statsLoop()
 
@@ -122,7 +130,7 @@ func (a *App) startup(ctx context.Context) {
 		if s.AutoConnect {
 			go func() {
 				if err := a.Connect(); err != nil {
-					a.notify("Không tự kết nối được", err.Error())
+					a.notify(i18n.T("Không tự kết nối được", "Could not auto-connect"), err.Error())
 				}
 			}()
 		}
@@ -175,7 +183,7 @@ func (a *App) toggle() {
 	if on {
 		_ = a.Disconnect()
 	} else if err := a.Connect(); err != nil {
-		a.notify("Kết nối thất bại", err.Error())
+		a.notify(i18n.T("Kết nối thất bại", "Connection failed"), err.Error())
 	}
 }
 
@@ -194,6 +202,10 @@ func (a *App) SaveSettings(s settings.Settings) error {
 		return err
 	}
 	a.syncAutostart(s)
+	if i18n.Resolve(s.Language) != i18n.Lang() {
+		i18n.Set(s.Language)
+		tray.Relabel() // the tooltip follows with emitStatusLocked below
+	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -211,9 +223,9 @@ func (a *App) SaveSettings(s settings.Settings) error {
 		cancel()
 		if err == nil {
 			a.conf.SelectedServer = s.SelectedServer
-			a.log("Đã chuyển server.")
+			a.log(i18n.T("Đã chuyển server.", "Server switched."))
 		} else {
-			a.log("Không chuyển server trực tiếp được: " + err.Error())
+			a.log(i18n.T("Không chuyển server trực tiếp được: ", "Could not switch server live: ") + err.Error())
 		}
 	}
 	a.emitStatusLocked()
@@ -256,7 +268,7 @@ func (a *App) syncAutostart(s settings.Settings) {
 		err = autostart.Disable()
 	}
 	if err != nil {
-		a.log("Không cập nhật được khởi động cùng Windows: " + err.Error())
+		a.log(i18n.T("Không cập nhật được khởi động cùng Windows: ", "Could not update start with Windows: ") + err.Error())
 	}
 }
 
@@ -295,7 +307,7 @@ func (a *App) applyLiveLocked(s settings.Settings) {
 	case StateReconnecting:
 		if !a.conf.AutoReconnect {
 			a.session++ // stops the retry loop
-			a.log("Đã dừng tự kết nối lại.")
+			a.log(i18n.T("Đã dừng tự kết nối lại.", "Stopped reconnecting."))
 			if a.blocking && protect {
 				a.state = StateBlocked
 			} else {
@@ -306,19 +318,19 @@ func (a *App) applyLiveLocked(s settings.Settings) {
 		}
 		if a.blocking && !protect {
 			a.stopLocked() // retries continue, just without blocking
-			a.log("Kill switch đã tắt: bỏ chặn mạng.")
+			a.log(i18n.T("Kill switch đã tắt: bỏ chặn mạng.", "Kill switch off: network unblocked."))
 		} else if !a.blocking && protect {
 			if err := a.startKillSwitchLocked(); err != nil {
-				a.log("Không bật được kill switch: " + err.Error())
+				a.log(i18n.T("Không bật được kill switch: ", "Could not turn on the kill switch: ") + err.Error())
 			} else {
-				a.log("Kill switch đã bật: đang chặn mạng.")
+				a.log(i18n.T("Kill switch đã bật: đang chặn mạng.", "Kill switch on: network blocked."))
 			}
 		}
 	case StateBlocked:
 		if !protect {
 			a.stopLocked()
 			a.state = StateOff
-			a.log("Kill switch đã tắt: bỏ chặn mạng.")
+			a.log(i18n.T("Kill switch đã tắt: bỏ chặn mạng.", "Kill switch off: network unblocked."))
 		} else if a.conf.AutoReconnect && !prev.AutoReconnect {
 			a.state = StateReconnecting
 			go a.reconnectLoop(a.session)
@@ -341,6 +353,7 @@ func (a *App) statusLocked() Status {
 		State:    a.state,
 		Admin:    isAdmin(),
 		OS:       goruntime.GOOS,
+		Lang:     i18n.Lang(),
 		BinsOK:   len(missing) == 0,
 		Missing:  missing,
 		Error:    a.lastErr,
@@ -366,13 +379,13 @@ func (a *App) emitStatusLocked() {
 	runtime.EventsEmit(a.ctx, "status", st)
 	switch a.state {
 	case StateOn:
-		tray.SetState(true, "Black Cyclone: đã kết nối ("+modeName(a.conf.Mode)+")")
+		tray.SetState(true, i18n.T("Black Cyclone: đã kết nối (", "Black Cyclone: connected (")+modeName(a.conf.Mode)+")")
 	case StateReconnecting:
-		tray.SetState(false, "Black Cyclone: đang kết nối lại…")
+		tray.SetState(false, i18n.T("Black Cyclone: đang kết nối lại…", "Black Cyclone: reconnecting…"))
 	case StateBlocked:
-		tray.SetState(false, "Black Cyclone: kill switch đang chặn mạng")
+		tray.SetState(false, i18n.T("Black Cyclone: kill switch đang chặn mạng", "Black Cyclone: kill switch is blocking the network"))
 	default:
-		tray.SetState(false, "Black Cyclone: chưa kết nối")
+		tray.SetState(false, i18n.T("Black Cyclone: chưa kết nối", "Black Cyclone: not connected"))
 	}
 }
 
@@ -396,11 +409,11 @@ func (a *App) Connect() error {
 	}
 	if err != nil {
 		a.lastErr = err.Error()
-		a.log("Lỗi: " + err.Error())
+		a.log(i18n.T("Lỗi: ", "Error: ") + err.Error())
 	} else {
 		a.state = StateOn
 		a.since = time.Now()
-		a.log("Đã kết nối.")
+		a.log(i18n.T("Đã kết nối.", "Connected."))
 	}
 	a.emitStatusLocked()
 	return err
@@ -425,18 +438,18 @@ func (a *App) Disconnect() error {
 	a.state = StateOff
 	a.lastErr = ""
 	a.warnings = nil
-	a.log("Đã ngắt kết nối.")
+	a.log(i18n.T("Đã ngắt kết nối.", "Disconnected."))
 	a.emitStatusLocked()
 	return nil
 }
 
 func (a *App) preflight() error {
 	if !isAdmin() {
-		return errors.New(errNotAdmin)
+		return errors.New(errNotAdmin())
 	}
 	bin := runner.BinDir()
 	if m := runner.Missing(bin); len(m) > 0 {
-		return errors.New("thiếu file trong " + bin + ": " + fetchBinsHint)
+		return errors.New(i18n.T("thiếu file trong ", "missing files in ") + bin + ": " + fetchBinsHint())
 	}
 	return nil
 }
@@ -464,7 +477,7 @@ func (a *App) startLocked(s settings.Settings) error {
 		return err
 	}
 	for _, w := range warnings {
-		a.log("Cảnh báo: " + w)
+		a.log(i18n.T("Cảnh báo: ", "Warning: ") + w)
 	}
 	if err := a.runSingBox(cfg, "sing-box ("+string(s.Mode)+")"); err != nil {
 		return err
@@ -506,7 +519,7 @@ func (a *App) runSingBox(cfg []byte, label string) error {
 
 	a.procGen++
 	gen := a.procGen
-	a.log("Khởi động " + label + "…")
+	a.log(i18n.T("Khởi động ", "Starting ") + label + "…")
 	sb, err := runner.Start("sing-box", filepath.Join(runner.BinDir(), runner.Exe("sing-box")),
 		[]string{"run", "-c", cfgPath, "-D", dir}, a.log, a.onUnexpectedExit("sing-box", gen))
 	if err != nil {
@@ -514,7 +527,7 @@ func (a *App) runSingBox(cfg []byte, label string) error {
 	}
 	// sing-box fails fast on bad config / TUN errors; give it a moment.
 	if exited, err := sb.Wait(1500 * time.Millisecond); exited {
-		return errors.New("sing-box dừng ngay khi khởi động (xem log): " + errString(err))
+		return errors.New(i18n.T("sing-box dừng ngay khi khởi động (xem log): ", "sing-box stopped right after starting (see the log): ") + errString(err))
 	}
 	a.sb = sb
 	return nil
@@ -538,7 +551,7 @@ func (a *App) onUnexpectedExit(name string, gen int) func(error) {
 			if gen != a.procGen || a.state == StateOff {
 				return // stopped on purpose, or a newer process is in charge
 			}
-			msg := name + " đã dừng bất ngờ: " + errString(err)
+			msg := name + i18n.T(" đã dừng bất ngờ: ", " stopped unexpectedly: ") + errString(err)
 			a.log(msg)
 			a.lastErr = msg
 			a.handleFailureLocked()
@@ -552,9 +565,9 @@ func (a *App) handleFailureLocked() {
 	protect := a.conf.KillSwitch
 	if protect {
 		if err := a.startKillSwitchLocked(); err != nil {
-			a.log("Không bật được kill switch: " + err.Error())
+			a.log(i18n.T("Không bật được kill switch: ", "Could not turn on the kill switch: ") + err.Error())
 		} else {
-			a.log("Kill switch: đang chặn mọi kết nối để không lộ IP.")
+			a.log(i18n.T("Kill switch: đang chặn mọi kết nối để không lộ IP.", "Kill switch: blocking all connections so your IP does not leak."))
 		}
 	} else {
 		a.stopLocked()
@@ -566,11 +579,11 @@ func (a *App) handleFailureLocked() {
 	}
 	if protect && a.blocking {
 		a.state = StateBlocked
-		a.notify("Mất kết nối VPN", "Kill switch đang chặn mạng. Mở Black Cyclone để kết nối lại hoặc ngắt.")
+		a.notify(i18n.T("Mất kết nối VPN", "VPN connection lost"), i18n.T("Kill switch đang chặn mạng. Mở Black Cyclone để kết nối lại hoặc ngắt.", "The kill switch is blocking the network. Open Black Cyclone to reconnect or disconnect."))
 		return
 	}
 	a.state = StateOff
-	a.notify("Mất kết nối VPN", a.lastErr)
+	a.notify(i18n.T("Mất kết nối VPN", "VPN connection lost"), a.lastErr)
 }
 
 func (a *App) reconnectLoop(session int) {
@@ -581,7 +594,7 @@ func (a *App) reconnectLoop(session int) {
 			a.mu.Unlock()
 			return
 		}
-		a.log(fmt.Sprintf("Kết nối lại (lần %d/%d)…", i+1, len(reconnectDelays)))
+		a.log(fmt.Sprintf(i18n.T("Kết nối lại (lần %d/%d)…", "Reconnecting (attempt %d/%d)…"), i+1, len(reconnectDelays)))
 		conf := a.conf
 		a.stopLocked()
 		err := a.startLocked(conf)
@@ -589,14 +602,14 @@ func (a *App) reconnectLoop(session int) {
 			a.state = StateOn
 			a.lastErr = ""
 			a.since = time.Now()
-			a.log("Đã kết nối lại.")
+			a.log(i18n.T("Đã kết nối lại.", "Reconnected."))
 			a.emitStatusLocked()
 			a.mu.Unlock()
-			a.notify("Đã kết nối lại", "Black Cyclone hoạt động trở lại.")
+			a.notify(i18n.T("Đã kết nối lại", "Reconnected"), i18n.T("Black Cyclone hoạt động trở lại.", "Black Cyclone is working again."))
 			return
 		}
 		a.lastErr = err.Error()
-		a.log("Kết nối lại thất bại: " + err.Error())
+		a.log(i18n.T("Kết nối lại thất bại: ", "Reconnect failed: ") + err.Error())
 		if conf.KillSwitch {
 			a.conf = conf
 			_ = a.startKillSwitchLocked()
@@ -612,11 +625,11 @@ func (a *App) reconnectLoop(session int) {
 	}
 	if a.blocking {
 		a.state = StateBlocked
-		a.notify("Không kết nối lại được", "Kill switch vẫn đang chặn mạng. Mở Black Cyclone để thử lại hoặc ngắt.")
+		a.notify(i18n.T("Không kết nối lại được", "Could not reconnect"), i18n.T("Kill switch vẫn đang chặn mạng. Mở Black Cyclone để thử lại hoặc ngắt.", "The kill switch is still blocking the network. Open Black Cyclone to retry or disconnect."))
 	} else {
 		a.stopLocked()
 		a.state = StateOff
-		a.notify("Không kết nối lại được", a.lastErr)
+		a.notify(i18n.T("Không kết nối lại được", "Could not reconnect"), a.lastErr)
 	}
 	a.emitStatusLocked()
 }
@@ -671,7 +684,7 @@ func (a *App) currentServer(ctx context.Context, c *clash.Client) string {
 	auto := tag == singbox.TagAuto
 	if auto {
 		if tag, err = c.Now(ctx, singbox.TagAuto); err != nil {
-			return "Tự động"
+			return i18n.T("Tự động", "Auto")
 		}
 	}
 	a.mu.Lock()
@@ -680,7 +693,7 @@ func (a *App) currentServer(ctx context.Context, c *clash.Client) string {
 	for _, s := range servers {
 		if singbox.ServerTag(s.ID) == tag {
 			if auto {
-				return "Tự động: " + s.Name
+				return i18n.T("Tự động: ", "Auto: ") + s.Name
 			}
 			return s.Name
 		}
@@ -738,7 +751,7 @@ func (a *App) log(line string) {
 func modeName(m settings.Mode) string {
 	switch m {
 	case settings.ModeCustom:
-		return "server riêng"
+		return i18n.T("server riêng", "own server")
 	}
 	return "WARP"
 }

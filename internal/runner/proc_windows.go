@@ -12,6 +12,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"black-cyclone/internal/i18n"
 )
 
 const exeSuffix = ".exe"
@@ -36,7 +38,7 @@ func afterStart(name string, cmd *exec.Cmd, onLine func(string)) error {
 	pid := uint32(cmd.Process.Pid)
 	if err := assignToJob(pid); err != nil && onLine != nil {
 		// Not fatal: the child still runs, it just won't be reaped if we crash.
-		onLine(fmt.Sprintf("[%s] cảnh báo: không gán được Job Object: %v", name, err))
+		onLine(fmt.Sprintf(i18n.T("[%s] cảnh báo: không gán được Job Object: %v", "[%s] warning: could not assign the Job Object: %v"), name, err))
 	}
 	if err := resumeProcess(pid); err != nil {
 		return fmt.Errorf("resume: %w", err)

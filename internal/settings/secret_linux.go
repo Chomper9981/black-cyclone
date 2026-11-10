@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	"golang.org/x/crypto/chacha20poly1305"
+
+	"black-cyclone/internal/i18n"
 )
 
 // Linux has no DPAPI. settings.json is sealed with XChaCha20-Poly1305 under a
@@ -44,7 +46,7 @@ func unprotect(data []byte) ([]byte, error) {
 	}
 	n := c.NonceSize()
 	if len(data) < n {
-		return nil, errors.New("dữ liệu mã hoá bị cụt")
+		return nil, errors.New(i18n.T("dữ liệu mã hoá bị cụt", "encrypted data is truncated"))
 	}
 	return c.Open(nil, data[:n], data[n:], nil)
 }
@@ -74,10 +76,10 @@ func aead(create bool) (cipher.AEAD, error) {
 			return nil, err
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("khoá %s: %w", keyFile, err)
+		return nil, fmt.Errorf(i18n.T("khoá %s: %w", "key %s: %w"), keyFile, err)
 	}
 	if len(key) != chacha20poly1305.KeySize {
-		return nil, fmt.Errorf("khoá %s không hợp lệ", keyFile)
+		return nil, fmt.Errorf(i18n.T("khoá %s không hợp lệ", "key %s is invalid"), keyFile)
 	}
 	return chacha20poly1305.NewX(key)
 }
