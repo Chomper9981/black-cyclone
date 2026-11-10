@@ -142,7 +142,6 @@ h1 em { font-style: normal; color: var(--accent-text); }
 }
 .deck-tabs button:hover { color: var(--text); }
 .deck-tabs button[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--accent-dim); }
-.shots-note { margin-top: 10px; text-align: center; font-size: 12.5px; color: var(--muted); }
 
 /* A single tilted screenshot */
 .frame { margin: 0; perspective: 1600px; }

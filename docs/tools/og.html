@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<!-- Social preview image (docs/assets/og.png, 1200x630). Render with a headless browser:
-     msedge --headless --window-size=1200,630 --screenshot=docs/assets/og.png docs/tools/og.html -->
-<html lang="vi">
+<!-- Social preview images, 1200x630. Render with a headless browser:
+     msedge --headless --window-size=1200,630 --screenshot=docs/assets/og.png    docs/tools/og.html
+     msedge --headless --window-size=1200,630 --screenshot=docs/assets/og-vi.png "docs/tools/og.html?lang=vi" -->
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;800&display=swap" rel="stylesheet">
@@ -34,12 +35,21 @@
 <body>
   <div class="copy">
     <div class="brand"><img src="../assets/logo.svg" alt="">Black <b>Cyclone</b></div>
-    <h1>Dữ liệu của bạn<br>đi qua <em>máy chủ<br>của bạn</em>.</h1>
-    <p>Tự dựng và quản lý VPS · mã nguồn mở<br>Windows · Linux · Android</p>
+    <h1 id="h">Your data goes<br>through <em>your own<br>server</em>.</h1>
+    <p id="p">Self-hosted VPN · open source<br>Windows · Linux · Android</p>
   </div>
   <div class="stage">
-    <div class="win back"><div class="bar"></div><img src="../assets/screens/vps.png" alt=""></div>
-    <div class="win front"><div class="bar"></div><img src="../assets/screens/conn.png" alt=""></div>
+    <div class="win back"><div class="bar"></div><img id="s1" src="../assets/screens/en/vps.png" alt=""></div>
+    <div class="win front"><div class="bar"></div><img id="s2" src="../assets/screens/en/conn.png" alt=""></div>
   </div>
+  <script>
+    if (new URLSearchParams(location.search).get('lang') === 'vi') {
+      document.documentElement.lang = 'vi';
+      document.getElementById('h').innerHTML = 'Dữ liệu của bạn<br>đi qua <em>máy chủ<br>của bạn</em>.';
+      document.getElementById('p').innerHTML = 'Tự dựng và quản lý VPS · mã nguồn mở<br>Windows · Linux · Android';
+      document.getElementById('s1').src = '../assets/screens/vps.png';
+      document.getElementById('s2').src = '../assets/screens/conn.png';
+    }
+  </script>
 </body>
 </html>
