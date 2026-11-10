@@ -29,11 +29,15 @@ import (
 	"github.com/sagernet/sing/service"
 
 	"black-cyclone/internal/clash"
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/settings"
 	"black-cyclone/internal/share"
 	"black-cyclone/internal/singbox"
 	"black-cyclone/internal/warp"
 )
+
+// SetLanguage switches the language of the core's messages and log lines: "vi" or "en".
+func SetLanguage(lang string) { i18n.Set(lang) }
 
 const probeURL = "https://www.gstatic.com/generate_204"
 
@@ -48,7 +52,7 @@ var (
 func parseAccount(accountJSON string) (*settings.Warp, error) {
 	var a settings.Warp
 	if err := json.Unmarshal([]byte(accountJSON), &a); err != nil {
-		return nil, fmt.Errorf("tài khoản WARP hỏng: %w", err)
+		return nil, fmt.Errorf(i18n.T("tài khoản WARP hỏng: %w", "corrupt WARP account: %w"), err)
 	}
 	return &a, nil
 }
@@ -66,7 +70,7 @@ func Register() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	logf("Đã đăng ký WARP mới (%s)", a.AccountType)
+	logf(i18n.T("Đã đăng ký WARP mới (%s)", "Registered a new WARP account (%s)"), a.AccountType)
 	return toJSON(a), nil
 }
 
@@ -79,7 +83,7 @@ func ApplyLicense(accountJSON, license string) (string, error) {
 	if err := warp.ApplyLicense(a, license); err != nil {
 		return "", err
 	}
-	logf("Đã áp dụng key WARP+ (%s)", a.AccountType)
+	logf(i18n.T("Đã áp dụng key WARP+ (%s)", "WARP+ key applied (%s)"), a.AccountType)
 	return toJSON(a), nil
 }
 
@@ -123,7 +127,7 @@ func Scan(accountJSON string, parallel, timeoutSec int) (string, error) {
 			rep.OK = append(rep.OK, scanResult{r.IP, r.Port, r.RTT.Milliseconds()})
 		}
 	}
-	logf("Quét %d endpoint: %d phản hồi", len(cands), ok)
+	logf(i18n.T("Quét %d endpoint: %d phản hồi", "Scanned %d endpoints: %d responded"), len(cands), ok)
 	return toJSON(rep), nil
 }
 
@@ -194,18 +198,18 @@ func Start(fd int, settingsJSON, dataDir string) error {
 	s, err := start(fd, settingsJSON, dataDir)
 	if err != nil {
 		closeFd(fd)
-		logf("Không khởi động được: %v", err)
+		logf(i18n.T("Không khởi động được: %v", "Failed to start: %v"), err)
 		return err
 	}
 	cur = s
-	logf("Đã bật %s", modeName(s.conf))
+	logf(i18n.T("Đã bật %s", "%s started"), modeName(s.conf))
 	go s.probeLoop()
 	return nil
 }
 
 func modeName(s settings.Settings) string {
 	if s.Mode == settings.ModeCustom {
-		return "Server riêng"
+		return i18n.T("Server riêng", "Own server")
 	}
 	return "WARP"
 }
@@ -215,11 +219,11 @@ func start(fd int, settingsJSON, dataDir string) (*session, error) {
 	p := platformIf
 	platformMu.Unlock()
 	if p == nil {
-		return nil, errors.New("chưa gọi SetPlatform")
+		return nil, errors.New(i18n.T("chưa gọi SetPlatform", "SetPlatform has not been called"))
 	}
 	conf := settings.Default()
 	if err := json.Unmarshal([]byte(settingsJSON), &conf); err != nil {
-		return nil, fmt.Errorf("cài đặt hỏng: %w", err)
+		return nil, fmt.Errorf(i18n.T("cài đặt hỏng: %w", "corrupt settings: %w"), err)
 	}
 	// Per-app rules are applied by the VpnService; process rules don't exist here.
 	conf.Routing.DirectProcesses = nil
@@ -246,19 +250,19 @@ func start(fd int, settingsJSON, dataDir string) (*session, error) {
 	opts, err := sjson.UnmarshalExtendedContext[option.Options](ctx, cfg)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("config sing-box: %w", err)
+		return nil, fmt.Errorf(i18n.T("config sing-box: %w", "sing-box config: %w"), err)
 	}
 	opts.Log = &option.LogOptions{Level: "info"} // the app adds its own timestamps
 	ctx = service.ContextWith[adapter.PlatformInterface](ctx, &platform{p: p, tunFd: fd})
 	instance, err := box.New(box.Options{Context: ctx, Options: opts, PlatformLogWriter: logWriter{}})
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("tạo sing-box: %w", err)
+		return nil, fmt.Errorf(i18n.T("tạo sing-box: %w", "create sing-box: %w"), err)
 	}
 	if err := instance.Start(); err != nil {
 		instance.Close()
 		cancel()
-		return nil, fmt.Errorf("chạy sing-box: %w", err)
+		return nil, fmt.Errorf(i18n.T("chạy sing-box: %w", "start sing-box: %w"), err)
 	}
 	return &session{
 		box: instance, ctx: ctx, cancel: cancel, tunFd: fd,
@@ -308,13 +312,13 @@ func (s *session) probe() {
 	defer s.mu.Unlock()
 	if err != nil {
 		if s.ctx.Err() == nil && s.probeErr != err.Error() {
-			logf("Kiểm tra kết nối: %v", err)
+			logf(i18n.T("Kiểm tra kết nối: %v", "Connection check: %v"), err)
 		}
 		s.probeErr = err.Error()
 		return
 	}
 	if s.lastOK.IsZero() {
-		logf("Đã thông: %d ms", ms)
+		logf(i18n.T("Đã thông: %d ms", "Tunnel is working: %d ms"), ms)
 	}
 	s.lastOK, s.delay, s.probeErr = time.Now(), time.Duration(ms)*time.Millisecond, ""
 }
@@ -326,7 +330,7 @@ func Stop() {
 	if cur != nil {
 		cur.close()
 		cur = nil
-		logf("Đã tắt")
+		logf("%s", i18n.T("Đã tắt", "Stopped"))
 	}
 }
 
@@ -378,13 +382,13 @@ func (s *session) currentServer(ctx context.Context) string {
 	auto := tag == singbox.TagAuto
 	if auto {
 		if tag, err = s.clash.Now(ctx, singbox.TagAuto); err != nil {
-			return "Tự động"
+			return i18n.T("Tự động", "Auto")
 		}
 	}
 	for _, srv := range s.conf.Servers {
 		if singbox.ServerTag(srv.ID) == tag {
 			if auto {
-				return "Tự động: " + srv.Name
+				return i18n.T("Tự động: ", "Auto: ") + srv.Name
 			}
 			return srv.Name
 		}
@@ -400,7 +404,7 @@ func SelectServer(id string) error {
 	s := cur
 	mu.Unlock()
 	if s == nil || s.conf.Mode != settings.ModeCustom {
-		return errors.New("chưa kết nối Server riêng")
+		return errors.New(i18n.T("chưa kết nối Server riêng", "not connected to an own server"))
 	}
 	member := singbox.TagAuto
 	if id != settings.AutoServer {

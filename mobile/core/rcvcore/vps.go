@@ -9,6 +9,7 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/vps"
 	"black-cyclone/server"
 )
@@ -28,17 +29,17 @@ type VpsOutput interface {
 func decodeHost(hostJSON string) (*vps.Host, error) {
 	var h vps.Host
 	if err := json.Unmarshal([]byte(hostJSON), &h); err != nil {
-		return nil, errors.New("dữ liệu VPS không hợp lệ")
+		return nil, errors.New(i18n.T("dữ liệu VPS không hợp lệ", "invalid VPS data"))
 	}
 	h.Addr = strings.Trim(strings.TrimSpace(h.Addr), "[]")
 	if h.Addr == "" || strings.ContainsAny(h.Addr, " /@") {
-		return nil, errors.New("nhập IP hoặc tên miền của VPS")
+		return nil, errors.New(i18n.T("nhập IP hoặc tên miền của VPS", "enter the VPS's IP or domain name"))
 	}
 	if h.Port == 0 {
 		h.Port = 22
 	}
 	if h.Port < 1 || h.Port > 65535 {
-		return nil, errors.New("cổng SSH phải từ 1 đến 65535")
+		return nil, errors.New(i18n.T("cổng SSH phải từ 1 đến 65535", "the SSH port must be between 1 and 65535"))
 	}
 	if h.User == "" {
 		h.User = "root"
@@ -58,7 +59,7 @@ func withVps(hostJSON string, timeout time.Duration, fn func(ctx context.Context
 		return err
 	}
 	if h.HostKey == "" {
-		return errors.New("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại")
+		return errors.New(i18n.T("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại", "this VPS has no verified SSH key: remove it and add it again"))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -82,17 +83,17 @@ func VpsCheck(hostJSON string, trustNewKey bool) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	logf("Đang kiểm tra đăng nhập SSH vào %s…", h.Addr)
+	logf(i18n.T("Đang kiểm tra đăng nhập SSH vào %s…", "Checking the SSH login to %s…"), h.Addr)
 	c, err := vps.Dial(ctx, h)
 	if err != nil {
-		logf("SSH thất bại: %v", err)
+		logf(i18n.T("SSH thất bại: %v", "SSH failed: %v"), err)
 		return "", err
 	}
 	defer c.Close()
 	if err := c.CheckRoot(ctx); err != nil {
 		return "", err
 	}
-	logf("VPS %s: khoá SSH %s", h.Addr, vps.Fingerprint(h.HostKey))
+	logf(i18n.T("VPS %s: khoá SSH %s", "VPS %s: SSH key %s"), h.Addr, vps.Fingerprint(h.HostKey))
 	return encode(h)
 }
 
@@ -135,18 +136,18 @@ func VpsInstall(hostJSON, optsJSON string, out VpsOutput) (string, error) {
 	var opts vps.InstallOptions
 	if optsJSON != "" {
 		if err := json.Unmarshal([]byte(optsJSON), &opts); err != nil {
-			return "", errors.New("tuỳ chọn cài đặt không hợp lệ")
+			return "", errors.New(i18n.T("tuỳ chọn cài đặt không hợp lệ", "invalid install options"))
 		}
 	}
 	return overviewAfter(hostJSON, 10*time.Minute, func(ctx context.Context, c *vps.Client) error {
-		logf("Đang cài / cập nhật server trên VPS…")
+		logf("%s", i18n.T("Đang cài / cập nhật server trên VPS…", "Installing / updating the server on the VPS…"))
 		err := c.Install(ctx, bcserverScript, opts, func(line string) {
 			if out != nil {
 				out.Line(line)
 			}
 		})
 		if err != nil {
-			logf("Cài server thất bại: %v", err)
+			logf(i18n.T("Cài server thất bại: %v", "Server install failed: %v"), err)
 		}
 		return err
 	})
@@ -196,7 +197,7 @@ func VpsLogs(hostJSON string) (string, error) {
 // LinkQR renders a share link as a QR code (PNG bytes).
 func LinkQR(link string, size int) ([]byte, error) {
 	if !strings.Contains(link, "://") || len(link) > 2048 {
-		return nil, errors.New("link không hợp lệ")
+		return nil, errors.New(i18n.T("link không hợp lệ", "invalid link"))
 	}
 	if size < 128 || size > 2048 {
 		size = 512

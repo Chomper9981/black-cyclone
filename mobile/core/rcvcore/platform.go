@@ -17,6 +17,8 @@ import (
 	"github.com/sagernet/sing/common/control"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
+
+	"black-cyclone/internal/i18n"
 )
 
 // Platform is implemented by the Android VpnService and handed to SetPlatform.
@@ -117,7 +119,7 @@ func (w *platform) UsePlatformInterface() bool { return true }
 func (w *platform) OpenInterface(options *tun.Options, _ option.TunPlatformOptions) (tun.Tun, error) {
 	name, err := tunName(w.tunFd)
 	if err != nil {
-		return nil, fmt.Errorf("tên TUN: %w", err)
+		return nil, fmt.Errorf(i18n.T("tên TUN: %w", "TUN name: %w"), err)
 	}
 	options.Name = name
 	if options.InterfaceMonitor != nil {
@@ -152,7 +154,7 @@ func (w *platform) UsePlatformNetworkInterfaces() bool { return true }
 func (w *platform) NetworkInterfaces() ([]adapter.NetworkInterface, error) {
 	var in []netInterface
 	if err := json.Unmarshal([]byte(w.p.Interfaces()), &in); err != nil {
-		return nil, fmt.Errorf("danh sách interface: %w", err)
+		return nil, fmt.Errorf(i18n.T("danh sách interface: %w", "interface list: %w"), err)
 	}
 	seen := map[string]bool{}
 	var out []adapter.NetworkInterface
@@ -283,9 +285,9 @@ func (m *defaultMonitor) update(name string, index int) {
 	callbacks := m.callbacks.Array()
 	m.mu.Unlock()
 	if iface == nil {
-		logf("Mất kết nối mạng")
+		logf("%s", i18n.T("Mất kết nối mạng", "Network connection lost"))
 	} else if old != nil {
-		logf("Mạng đổi sang %s", iface.Name)
+		logf(i18n.T("Mạng đổi sang %s", "Network changed to %s"), iface.Name)
 	}
 	for _, cb := range callbacks {
 		cb(iface, 0)
