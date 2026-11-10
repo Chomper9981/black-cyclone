@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.blackcyclone.vpn.tr
 
 @Composable
 fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -71,7 +72,7 @@ fun TextInputDialog(
             }
         },
         confirmButton = { TextButton(onClick = { if (onOk(text)) onDismiss() }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Huỷ") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Huỷ", "Cancel")) } },
     )
 }
 

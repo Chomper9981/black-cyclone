@@ -22,7 +22,7 @@ sealed interface VpsState {
     data class Ok(val o: VpsOverview) : VpsState
     data class Failed(val error: String) : VpsState {
         /** The VPS answered with another SSH key than the pinned one. */
-        val hostKeyChanged: Boolean get() = error.contains("khoá SSH của VPS đã thay đổi")
+        val hostKeyChanged: Boolean get() = error.contains("khoá SSH của VPS đã thay đổi") || error.contains("SSH key has changed")
     }
 }
 
@@ -84,7 +84,7 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
         val unchanged = editing != null && editing.addr == h.addr && editing.port == h.port &&
             editing.user == h.user && editing.json.optString("password") == h.json.optString("password") &&
             editing.json.optString("key_pem") == h.json.optString("key_pem")
-        _op.value = "Đang kiểm tra đăng nhập…"
+        _op.value = tr("Đang kiểm tra đăng nhập…", "Checking login…")
         val checked = try {
             if (unchanged) h else VpsHost(JSONObject(withContext(Dispatchers.IO) { Rcvcore.vpsCheck(h.json.toString(), false) }))
         } catch (e: Exception) {
@@ -95,7 +95,7 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
         }
         checked ?: return false
         saveHosts(if (editing == null) _hosts.value + checked else _hosts.value.map { if (it.id == checked.id) checked else it })
-        _message.value = if (editing == null) "Đã thêm ${checked.name}. Khoá SSH: ${fingerprint(checked)}" else "Đã lưu ${checked.name}"
+        _message.value = if (editing == null) tr("Đã thêm ${checked.name}. Khoá SSH: ${fingerprint(checked)}", "Added ${checked.name}. SSH key: ${fingerprint(checked)}") else tr("Đã lưu ${checked.name}", "Saved ${checked.name}")
         _states.update { it - checked.id }
         if (editing == null) select(checked.id) else if (_selected.value == checked.id) refresh()
         return true
@@ -110,11 +110,11 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
             Prefs.selectedVps = _selected.value
             _selected.value?.let { if (_states.value[it] == null) refresh() }
         }
-        _message.value = "Đã xoá VPS khỏi app. Server trên VPS vẫn chạy, link của mọi người vẫn dùng được."
+        _message.value = tr("Đã xoá VPS khỏi app. Server trên VPS vẫn chạy, link của mọi người vẫn dùng được.", "VPS removed from the app. The server on it keeps running and everyone's links still work.")
     }
 
     /** Runs an operation on the selected VPS that returns a new overview JSON. */
-    private fun run(label: String, done: String? = null, call: (hostJson: String) -> String?) {
+    private fun run(label: String, done: String? = null, loading: Boolean = false, call: (hostJson: String) -> String?) {
         val h = host(_selected.value) ?: return
         if (_op.value != null) return
         _op.value = label
@@ -125,7 +125,7 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
                 done?.let { _message.value = it }
             } catch (e: Exception) {
                 val msg = e.message ?: e.toString()
-                if (label == LOADING) _states.update { it + (h.id to VpsState.Failed(msg)) } else _message.value = msg
+                if (loading) _states.update { it + (h.id to VpsState.Failed(msg)) } else _message.value = msg
             } finally {
                 _op.value = null
             }
@@ -135,7 +135,7 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
     fun refresh() {
         val id = _selected.value ?: return
         if (_states.value[id] !is VpsState.Ok) _states.update { it + (id to VpsState.Loading) }
-        run(LOADING) { Rcvcore.vpsOverview(it) }
+        run(tr("Đang kết nối tới VPS…", "Connecting to the VPS…"), loading = true) { Rcvcore.vpsOverview(it) }
     }
 
     /** Quiet refresh for the periodic update of who is online. */
@@ -157,23 +157,23 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
                 _output.update { (it + line).takeLast(OUTPUT_MAX) }
             }
         }
-        run(if (update) "Đang cập nhật server…" else "Đang cài server… (1–2 phút)",
-            if (update) "Đã cập nhật server" else "Đã cài server. Dùng nút “+ app” để thêm link vào máy này.") {
+        run(if (update) tr("Đang cập nhật server…", "Updating server…") else tr("Đang cài server… (1–2 phút)", "Installing server… (1–2 minutes)"),
+            if (update) tr("Đã cập nhật server", "Server updated") else tr("Đã cài server. Dùng nút “+ app” để thêm link vào máy này.", "Server installed. Use the “+ app” button to add a link to this device.")) {
             Rcvcore.vpsInstall(it, opts.toString(), out)
         }
     }
 
-    fun addUser(name: String) = run("Đang thêm $name…", "Đã thêm $name") { Rcvcore.vpsAddUser(it, name.trim()) }
+    fun addUser(name: String) = run(tr("Đang thêm $name…", "Adding $name…"), tr("Đã thêm $name", "Added $name")) { Rcvcore.vpsAddUser(it, name.trim()) }
 
-    fun removeUser(name: String) = run("Đang xoá $name…", "Đã xoá $name: link của người này hết dùng được") { Rcvcore.vpsRemoveUser(it, name) }
+    fun removeUser(name: String) = run(tr("Đang xoá $name…", "Removing $name…"), tr("Đã xoá $name: link của người này hết dùng được", "Removed $name: their link no longer works")) { Rcvcore.vpsRemoveUser(it, name) }
 
-    fun restart() = run("Đang khởi động lại…", "Đã khởi động lại server") { Rcvcore.vpsRestart(it) }
+    fun restart() = run(tr("Đang khởi động lại…", "Restarting…"), tr("Đã khởi động lại server", "Server restarted")) { Rcvcore.vpsRestart(it) }
 
-    fun resetTraffic() = run("Đang đặt lại thống kê…", "Đã đặt lại thống kê lưu lượng") { Rcvcore.vpsResetTraffic(it) }
+    fun resetTraffic() = run(tr("Đang đặt lại thống kê…", "Resetting statistics…"), tr("Đã đặt lại thống kê lưu lượng", "Traffic statistics reset")) { Rcvcore.vpsResetTraffic(it) }
 
-    fun uninstall() = run("Đang gỡ server…", "Đã gỡ server khỏi VPS") { Rcvcore.vpsUninstall(it) }
+    fun uninstall() = run(tr("Đang gỡ server…", "Uninstalling server…"), tr("Đã gỡ server khỏi VPS", "Server uninstalled from the VPS")) { Rcvcore.vpsUninstall(it) }
 
-    fun logs() = run("Đang tải log…") {
+    fun logs() = run(tr("Đang tải log…", "Loading log…")) {
         val text = Rcvcore.vpsLogs(it)
         _output.value = text.trimEnd().lines().takeLast(OUTPUT_MAX)
         null
@@ -183,12 +183,12 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
     fun trustNewKey() {
         val h = host(_selected.value) ?: return
         if (_op.value != null) return
-        _op.value = "Đang kết nối…"
+        _op.value = tr("Đang kết nối…", "Connecting…")
         viewModelScope.launch {
             try {
                 val checked = VpsHost(JSONObject(withContext(Dispatchers.IO) { Rcvcore.vpsCheck(h.json.toString(), true) }))
                 saveHosts(_hosts.value.map { if (it.id == checked.id) checked else it })
-                _message.value = "Đã chấp nhận khoá SSH mới: ${Rcvcore.vpsFingerprint(checked.hostKey)}"
+                _message.value = tr("Đã chấp nhận khoá SSH mới: ${Rcvcore.vpsFingerprint(checked.hostKey)}", "New SSH key accepted: ${Rcvcore.vpsFingerprint(checked.hostKey)}")
                 _states.update { it - h.id }
             } catch (e: Exception) {
                 _message.value = e.message ?: e.toString()
@@ -208,7 +208,6 @@ class VpsViewModel(app: Application) : AndroidViewModel(app) {
     fun newId(): String = Rcvcore.newID()
 
     companion object {
-        private const val LOADING = "Đang kết nối tới VPS…"
         private const val OUTPUT_MAX = 400
     }
 }

@@ -54,10 +54,10 @@ class WarpTileService : TileService() {
         tile.state = if (st.active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when (st.status) {
-                Status.CONNECTED -> "Đã kết nối"
-                Status.CONNECTING -> "Đang kết nối…"
-                Status.ERROR -> "Lỗi"
-                Status.DISCONNECTED -> "Đã ngắt"
+                Status.CONNECTED -> tr("Đã kết nối", "Connected")
+                Status.CONNECTING -> tr("Đang kết nối…", "Connecting…")
+                Status.ERROR -> tr("Lỗi", "Error")
+                Status.DISCONNECTED -> tr("Đã ngắt", "Disconnected")
             }
         }
         tile.updateTile()

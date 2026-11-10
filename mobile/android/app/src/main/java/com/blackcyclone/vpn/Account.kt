@@ -18,7 +18,7 @@ class Account private constructor(val json: String, private val o: JSONObject) {
 
     val typeLabel: String
         get() = when (accountType) {
-            "", "free" -> "WARP miễn phí"
+            "", "free" -> tr("WARP miễn phí", "Free WARP")
             "unlimited", "limited" -> "WARP+"
             else -> accountType
         }

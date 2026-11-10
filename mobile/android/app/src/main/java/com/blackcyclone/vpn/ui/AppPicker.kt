@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import com.blackcyclone.vpn.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -65,16 +66,16 @@ fun AppPicker(initial: Set<String>, onDone: (Set<String>) -> Unit) {
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Đã chọn ${selected.size}", Modifier.weight(1f))
-            Button(onClick = { onDone(selected) }) { Text("Xong") }
+            Text(tr("Đã chọn ${selected.size}", "${selected.size} selected"), Modifier.weight(1f))
+            Button(onClick = { onDone(selected) }) { Text(tr("Xong", "Done")) }
         }
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
-            label = { Text("Tìm ứng dụng") }, modifier = Modifier.fillMaxWidth(),
+            label = { Text(tr("Tìm ứng dụng", "Search apps")) }, modifier = Modifier.fillMaxWidth(),
         )
         FilterChip(
             selected = showSystem, onClick = { showSystem = !showSystem },
-            label = { Text("Hiện ứng dụng hệ thống") }, modifier = Modifier.padding(vertical = 4.dp),
+            label = { Text(tr("Hiện ứng dụng hệ thống", "Show system apps")) }, modifier = Modifier.padding(vertical = 4.dp),
         )
         val list = apps
         if (list == null) {

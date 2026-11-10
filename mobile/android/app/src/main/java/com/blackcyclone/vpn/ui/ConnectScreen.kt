@@ -66,6 +66,7 @@ import com.blackcyclone.vpn.TunnelState
 import com.blackcyclone.vpn.formatBytes
 import com.blackcyclone.vpn.formatRate
 import com.blackcyclone.vpn.parseEndpoint
+import com.blackcyclone.vpn.tr
 
 @Composable
 fun ConnectScreen(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) {
@@ -114,17 +115,19 @@ private fun ServersCard(vm: MainViewModel, servers: List<ServerEntry>, selected:
     var menuFor by remember { mutableStateOf<ServerEntry?>(null) }
     var renaming by remember { mutableStateOf<ServerEntry?>(null) }
 
-    SectionCard("Server riêng") {
+    SectionCard(tr("Server riêng", "Own server")) {
         if (servers.isEmpty()) {
             Hint(
-                "Chưa có server. Dán link vless:// (hoặc vmess, trojan, ss, hysteria2, tuic) lấy từ VPS của bạn: " +
+                tr("Chưa có server. Dán link vless:// (hoặc vmess, trojan, ss, hysteria2, tuic) lấy từ VPS của bạn: " +
                     "trên VPS cài bằng thư mục server/ của Black Cyclone, lệnh bcserver link in ra link này.",
+                    "No servers yet. Paste a vless:// link (or vmess, trojan, ss, hysteria2, tuic) from your VPS: " +
+                    "on a VPS set up with Black Cyclone's server/ folder, the bcserver link command prints it."),
                 Modifier.padding(vertical = 6.dp),
             )
         } else {
-            Hint("Chạm để chọn, giữ để đổi tên / xoá.", Modifier.padding(top = 4.dp, bottom = 4.dp))
+            Hint(tr("Chạm để chọn, giữ để đổi tên / xoá.", "Tap to select, long-press to rename / delete."), Modifier.padding(top = 4.dp, bottom = 4.dp))
             if (servers.size > 1) {
-                ServerRow("Tự động", "chọn server có độ trễ thấp nhất", selected == ServerEntry.AUTO, onClick = { vm.selectServer(ServerEntry.AUTO) })
+                ServerRow(tr("Tự động", "Auto"), tr("chọn server có độ trễ thấp nhất", "picks the server with the lowest latency"), selected == ServerEntry.AUTO, onClick = { vm.selectServer(ServerEntry.AUTO) })
             }
             servers.forEach { srv ->
                 ServerRow(
@@ -135,16 +138,16 @@ private fun ServersCard(vm: MainViewModel, servers: List<ServerEntry>, selected:
             }
         }
         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { adding = true }) { Text("Thêm server") }
+            Button(onClick = { adding = true }) { Text(tr("Thêm server", "Add server")) }
         }
     }
 
     if (adding) {
         TextInputDialog(
-            title = "Thêm server",
+            title = tr("Thêm server", "Add server"),
             label = "Link",
             initial = ctx.pasteText().takeIf { it.contains("://") }.orEmpty(),
-            hint = "Dán một hoặc nhiều link. Link chứa khoá truy cập server: đừng chia sẻ công khai.",
+            hint = tr("Dán một hoặc nhiều link. Link chứa khoá truy cập server: đừng chia sẻ công khai.", "Paste one or more links. A link contains the server's access key: don't share it publicly."),
             singleLine = false,
             onDismiss = { adding = false },
             onOk = { vm.addServers(it) },
@@ -156,17 +159,17 @@ private fun ServersCard(vm: MainViewModel, servers: List<ServerEntry>, selected:
             title = { Text(srv.name) },
             text = { Text(srv.address, fontFamily = FontFamily.Monospace) },
             confirmButton = {
-                TextButton(onClick = { menuFor = null; renaming = srv }) { Text("Đổi tên") }
+                TextButton(onClick = { menuFor = null; renaming = srv }) { Text(tr("Đổi tên", "Rename")) }
             },
             dismissButton = {
                 Row {
                     TextButton(onClick = {
                         ctx.copyText("Server link", srv.link)
-                        vm.toast("Đã sao chép link")
+                        vm.toast(tr("Đã sao chép link", "Link copied"))
                         menuFor = null
-                    }) { Text("Sao chép link") }
+                    }) { Text(tr("Sao chép link", "Copy link")) }
                     TextButton(onClick = { menuFor = null; vm.removeServer(srv.id) }) {
-                        Text("Xoá", color = MaterialTheme.colorScheme.error)
+                        Text(tr("Xoá", "Delete"), color = MaterialTheme.colorScheme.error)
                     }
                 }
             },
@@ -174,8 +177,8 @@ private fun ServersCard(vm: MainViewModel, servers: List<ServerEntry>, selected:
     }
     renaming?.let { srv ->
         TextInputDialog(
-            title = "Đổi tên",
-            label = "Tên",
+            title = tr("Đổi tên", "Rename"),
+            label = tr("Tên", "Name"),
             initial = srv.name,
             onDismiss = { renaming = null },
             onOk = { vm.renameServer(srv.id, it); it.isNotBlank() },
@@ -206,11 +209,11 @@ private fun ServerRow(title: String, sub: String, selected: Boolean, onClick: ()
 @Composable
 private fun StatusPanel(st: TunnelInfo, enabled: Boolean, onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val (label, color) = when {
-        st.status == Status.CONNECTED -> "Đã kết nối" to OkGreen
-        st.blocking -> "Đang chặn mạng (kill switch)" to MaterialTheme.colorScheme.error
-        st.status == Status.CONNECTING -> "Đang kết nối…" to WarnAmber
-        st.status == Status.ERROR -> "Lỗi" to MaterialTheme.colorScheme.error
-        else -> "Đã ngắt" to MaterialTheme.colorScheme.onSurfaceVariant
+        st.status == Status.CONNECTED -> tr("Đã kết nối", "Connected") to OkGreen
+        st.blocking -> tr("Đang chặn mạng (kill switch)", "Blocking the network (kill switch)") to MaterialTheme.colorScheme.error
+        st.status == Status.CONNECTING -> tr("Đang kết nối…", "Connecting…") to WarnAmber
+        st.status == Status.ERROR -> tr("Lỗi", "Error") to MaterialTheme.colorScheme.error
+        else -> tr("Đã ngắt", "Disconnected") to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val pulse = rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.45f, targetValue = 1f,
@@ -230,14 +233,14 @@ private fun StatusPanel(st: TunnelInfo, enabled: Boolean, onConnect: () -> Unit,
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                if (st.active) "NGẮT" else "KẾT NỐI",
+                if (st.active) tr("NGẮT", "STOP") else tr("KẾT NỐI", "CONNECT"),
                 color = if (enabled || st.active) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp,
             )
         }
         Spacer(Modifier.height(14.dp))
         Text(label, color = color, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        st.endpoint?.takeIf { st.active }?.let { Hint("qua $it") }
+        st.endpoint?.takeIf { st.active }?.let { Hint(tr("qua $it", "via $it")) }
         st.message?.let {
             Text(
                 it, modifier = Modifier.padding(top = 6.dp),
@@ -248,12 +251,12 @@ private fun StatusPanel(st: TunnelInfo, enabled: Boolean, onConnect: () -> Unit,
         if (st.active) {
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Stat("↓ Tải xuống", formatRate(st.rxRate), formatBytes(st.rx))
-                Stat("↑ Tải lên", formatRate(st.txRate), formatBytes(st.tx))
+                Stat(tr("↓ Tải xuống", "↓ Download"), formatRate(st.rxRate), formatBytes(st.rx))
+                Stat(tr("↑ Tải lên", "↑ Upload"), formatRate(st.txRate), formatBytes(st.tx))
                 Stat(
-                    "Độ trễ",
+                    tr("Độ trễ", "Latency"),
                     if (st.okAgoMs < 0) "—" else "${st.delayMs} ms",
-                    if (st.okAgoMs < 0) "chưa thông" else "đo ${st.okAgoMs / 1000}s trước",
+                    if (st.okAgoMs < 0) tr("chưa thông", "no traffic yet") else tr("đo ${st.okAgoMs / 1000}s trước", "measured ${st.okAgoMs / 1000}s ago"),
                 )
             }
         }
@@ -274,9 +277,9 @@ private fun AccountCard(vm: MainViewModel, account: Account?, busy: String?) {
     val ctx = LocalContext.current
     var dialog by remember { mutableStateOf<String?>(null) }
 
-    SectionCard("Tài khoản WARP") {
+    SectionCard(tr("Tài khoản WARP", "WARP account")) {
         if (account == null) {
-            Hint("Chưa có tài khoản. Đăng ký WARP miễn phí ngay trong app (không cần email), hoặc nhập tài khoản đã xuất từ app khác.", Modifier.padding(vertical = 6.dp))
+            Hint(tr("Chưa có tài khoản. Đăng ký WARP miễn phí ngay trong app (không cần email), hoặc nhập tài khoản đã xuất từ app khác.", "No account yet. Register a free WARP account right in the app (no email needed), or import one exported from another app."), Modifier.padding(vertical = 6.dp))
         } else {
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(account.typeLabel, color = if (account.typeLabel == "WARP+") OkGreen else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -293,46 +296,46 @@ private fun AccountCard(vm: MainViewModel, account: Account?, busy: String?) {
         }
         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (account == null) {
-                Button(onClick = vm::register, enabled = busy == null) { Text("Đăng ký WARP") }
+                Button(onClick = vm::register, enabled = busy == null) { Text(tr("Đăng ký WARP", "Register WARP")) }
             } else {
-                Button(onClick = { dialog = "license" }, enabled = busy == null) { Text("Key WARP+") }
-                OutlinedButton(onClick = { dialog = "rereg" }, enabled = busy == null) { Text("Đăng ký lại") }
+                Button(onClick = { dialog = "license" }, enabled = busy == null) { Text(tr("Key WARP+", "WARP+ key")) }
+                OutlinedButton(onClick = { dialog = "rereg" }, enabled = busy == null) { Text(tr("Đăng ký lại", "Re-register")) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (account != null) {
                 TextButton(onClick = {
                     ctx.copyText("WARP account", account.json)
-                    vm.toast("Đã sao chép tài khoản (chứa khoá bí mật, đừng chia sẻ)")
-                }) { Text("Xuất") }
+                    vm.toast(tr("Đã sao chép tài khoản (chứa khoá bí mật, đừng chia sẻ)", "Account copied (it contains secret keys, don't share it)"))
+                }) { Text(tr("Xuất", "Export")) }
             }
-            TextButton(onClick = { dialog = "import" }, enabled = busy == null) { Text("Nhập") }
+            TextButton(onClick = { dialog = "import" }, enabled = busy == null) { Text(tr("Nhập", "Import")) }
         }
     }
 
     when (dialog) {
         "license" -> TextInputDialog(
-            title = "Key WARP+",
+            title = tr("Key WARP+", "WARP+ key"),
             label = "xxxxxxxx-xxxxxxxx-xxxxxxxx",
-            hint = "Gắn key WARP+ vào thiết bị này. Mỗi key dùng được trên tối đa 5 thiết bị.",
+            hint = tr("Gắn key WARP+ vào thiết bị này. Mỗi key dùng được trên tối đa 5 thiết bị.", "Bind a WARP+ key to this device. Each key works on up to 5 devices."),
             onDismiss = { dialog = null },
             onOk = { if (it.isNotBlank()) vm.applyLicense(it); it.isNotBlank() },
         )
         "import" -> TextInputDialog(
-            title = "Nhập tài khoản",
-            label = "JSON tài khoản",
+            title = tr("Nhập tài khoản", "Import account"),
+            label = tr("JSON tài khoản", "Account JSON"),
             initial = ctx.pasteText().takeIf { it.trimStart().startsWith("{") }.orEmpty(),
-            hint = "Dán JSON đã xuất từ BlackCyclone (Android) hoặc Black Cyclone bản máy tính. Tài khoản hiện tại sẽ bị thay thế.",
+            hint = tr("Dán JSON đã xuất từ BlackCyclone (Android) hoặc Black Cyclone bản máy tính. Tài khoản hiện tại sẽ bị thay thế.", "Paste the JSON exported from BlackCyclone (Android) or Black Cyclone for desktop. It replaces the current account."),
             singleLine = false,
             onDismiss = { dialog = null },
             onOk = { vm.import(it) },
         )
         "rereg" -> AlertDialog(
             onDismissRequest = { dialog = null },
-            title = { Text("Đăng ký lại?") },
-            text = { Text("Tạo tài khoản WARP mới với khoá mới. Tài khoản hiện tại (và key WARP+ nếu có) sẽ bị bỏ, hãy Xuất trước nếu cần giữ.") },
-            confirmButton = { TextButton(onClick = { dialog = null; vm.register() }) { Text("Đăng ký lại") } },
-            dismissButton = { TextButton(onClick = { dialog = null }) { Text("Huỷ") } },
+            title = { Text(tr("Đăng ký lại?", "Re-register?")) },
+            text = { Text(tr("Tạo tài khoản WARP mới với khoá mới. Tài khoản hiện tại (và key WARP+ nếu có) sẽ bị bỏ, hãy Xuất trước nếu cần giữ.", "Creates a new WARP account with new keys. The current account (and its WARP+ key, if any) is discarded: Export it first if you want to keep it.")) },
+            confirmButton = { TextButton(onClick = { dialog = null; vm.register() }) { Text(tr("Đăng ký lại", "Re-register")) } },
+            dismissButton = { TextButton(onClick = { dialog = null }) { Text(tr("Huỷ", "Cancel")) } },
         )
     }
 }
@@ -344,21 +347,21 @@ private fun EndpointCard(vm: MainViewModel, account: Account, scan: ScanState) {
     SectionCard("Endpoint") {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(account.endpointText, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-            TextButton(onClick = { editing = true }) { Text("Sửa") }
+            TextButton(onClick = { editing = true }) { Text(tr("Sửa", "Edit")) }
         }
-        Hint("Nếu kết nối được mà không vào mạng, hoặc mãi không bắt tay, hãy quét để tìm IP:port còn sống và nhanh nhất trên mạng của bạn.")
+        Hint(tr("Nếu kết nối được mà không vào mạng, hoặc mãi không bắt tay, hãy quét để tìm IP:port còn sống và nhanh nhất trên mạng của bạn.", "If it connects but nothing loads, or the handshake never completes, scan to find the fastest working IP:port on your network."))
         Spacer(Modifier.height(10.dp))
         if (scan.running) {
             LinearProgressIndicator(progress = { scan.progress }, modifier = Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Hint("Đang quét bằng handshake WireGuard thật…", Modifier.weight(1f))
-                TextButton(onClick = vm::cancelScan) { Text("Dừng") }
+                Hint(tr("Đang quét bằng handshake WireGuard thật…", "Scanning with real WireGuard handshakes…"), Modifier.weight(1f))
+                TextButton(onClick = vm::cancelScan) { Text(tr("Dừng", "Stop")) }
             }
         } else {
-            Button(onClick = vm::startScan) { Text("Quét endpoint") }
+            Button(onClick = vm::startScan) { Text(tr("Quét endpoint", "Scan endpoints")) }
         }
         if (scan.done && !scan.running) {
-            Hint("Đã quét ${scan.scanned}, ${scan.hits.size} phản hồi. Chạm để chọn:", Modifier.padding(top = 10.dp, bottom = 4.dp))
+            Hint(tr("Đã quét ${scan.scanned}, ${scan.hits.size} phản hồi. Chạm để chọn:", "Scanned ${scan.scanned}, ${scan.hits.size} responded. Tap to select:"), Modifier.padding(top = 10.dp, bottom = 4.dp))
             scan.hits.take(10).forEach { h ->
                 val selected = h.ip == account.endpoint && h.port == account.port
                 Row(
@@ -381,11 +384,11 @@ private fun EndpointCard(vm: MainViewModel, account: Account, scan: ScanState) {
             title = "Endpoint",
             label = "IP:port",
             initial = account.endpointText,
-            hint = "Ví dụ 162.159.192.1:2408 hoặc engage.cloudflareclient.com:2408",
+            hint = tr("Ví dụ 162.159.192.1:2408 hoặc engage.cloudflareclient.com:2408", "For example 162.159.192.1:2408 or engage.cloudflareclient.com:2408"),
             onDismiss = { editing = false },
             onOk = { text ->
                 val ep = parseEndpoint(text)
-                if (ep == null) vm.toast("Endpoint không hợp lệ") else vm.setEndpoint(ep.first, ep.second)
+                if (ep == null) vm.toast(tr("Endpoint không hợp lệ", "Invalid endpoint")) else vm.setEndpoint(ep.first, ep.second)
                 ep != null
             },
         )
@@ -396,16 +399,18 @@ private fun EndpointCard(vm: MainViewModel, account: Account, scan: ScanState) {
 @Composable
 private fun LockdownWarning() {
     val ctx = LocalContext.current
-    SectionCard("Chưa chặn hoàn toàn") {
+    SectionCard(tr("Chưa chặn hoàn toàn", "Not fully blocked")) {
         Text(
-            "\"Chặn kết nối không qua VPN\" của Android đang tắt: nếu app bị hệ thống tắt hẳn hoặc lúc khởi động máy, " +
+            tr("\"Chặn kết nối không qua VPN\" của Android đang tắt: nếu app bị hệ thống tắt hẳn hoặc lúc khởi động máy, " +
                 "ứng dụng có thể đi thẳng và lộ IP thật. Bật \"VPN luôn bật\" và \"Chặn kết nối không qua VPN\" cho BlackCyclone.",
+                "Android's \"Block connections without VPN\" is off: if the system kills the app, or while the device boots, " +
+                "apps can go direct and expose your real IP. Turn on \"Always-on VPN\" and \"Block connections without VPN\" for BlackCyclone."),
             color = WarnAmber,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
         )
         OutlinedButton(onClick = {
             ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }) { Text("Mở cài đặt VPN") }
+        }) { Text(tr("Mở cài đặt VPN", "Open VPN settings")) }
     }
 }

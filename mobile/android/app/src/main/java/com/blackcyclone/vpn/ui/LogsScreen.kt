@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.blackcyclone.vpn.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -50,14 +51,14 @@ fun LogsScreen(onCopied: () -> Unit) {
             OutlinedButton(onClick = {
                 ctx.copyText("BlackCyclone log", text)
                 onCopied()
-            }) { Text("Sao chép") }
+            }) { Text(tr("Sao chép", "Copy")) }
             OutlinedButton(onClick = {
                 Rcvcore.clearLogs()
                 text = ""
-            }) { Text("Xoá") }
+            }) { Text(tr("Xoá", "Delete")) }
         }
         if (lines.isEmpty()) {
-            Hint("Chưa có nhật ký.", Modifier.padding(top = 16.dp))
+            Hint(tr("Chưa có nhật ký.", "No logs yet."), Modifier.padding(top = 16.dp))
         } else {
             SelectionContainer(Modifier.padding(top = 12.dp)) {
                 LazyColumn(state = listState) {
