@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"black-cyclone/internal/i18n"
 )
 
 // LoadSecret reads another encrypted JSON file from the settings folder into v
@@ -25,10 +27,10 @@ func LoadSecret(name string, v any) error {
 		return err
 	}
 	if !strings.HasPrefix(string(data), encMagic) {
-		return errors.New(name + ": file không đúng định dạng")
+		return errors.New(name + i18n.T(": file không đúng định dạng", ": not a valid file"))
 	}
 	if data, err = unprotect(data[len(encMagic):]); err != nil {
-		return errors.New("không giải mã được " + name + ": " + err.Error())
+		return errors.New(i18n.T("không giải mã được ", "cannot decrypt ") + name + ": " + err.Error())
 	}
 	return json.Unmarshal(data, v)
 }

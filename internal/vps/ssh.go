@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+
+	"black-cyclone/internal/i18n"
 )
 
 // Host is one VPS the user manages. Stored encrypted (vps.json); the secret
@@ -48,8 +50,12 @@ type Host struct {
 type HostKeyChangedError struct{ Want, Got string }
 
 func (e *HostKeyChangedError) Error() string {
-	return "khoá SSH của VPS đã thay đổi (trước: " + e.Want + ", giờ: " + e.Got + "). " +
-		"Nếu bạn vừa cài lại VPS thì xoá VPS khỏi app rồi thêm lại; nếu không, có thể có kẻ đang chặn giữa đường: đừng kết nối."
+	// The UIs recognise this error by "khoá SSH của VPS đã thay đổi" / "SSH key has changed".
+	return i18n.T(
+		"khoá SSH của VPS đã thay đổi (trước: "+e.Want+", giờ: "+e.Got+"). "+
+			"Nếu bạn vừa cài lại VPS thì chấp nhận khoá mới; nếu không, có thể có kẻ đang chặn giữa đường: đừng kết nối.",
+		"the VPS's SSH key has changed (was: "+e.Want+", now: "+e.Got+"). "+
+			"If you have just reinstalled the VPS, accept the new key; otherwise someone may be intercepting the connection: do not connect.")
 }
 
 // Fingerprint returns the SHA256 fingerprint of a pinned host key ("" if none or invalid).
@@ -94,7 +100,7 @@ func Dial(ctx context.Context, h *Host) (*Client, error) {
 	d := net.Dialer{Timeout: 15 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("không kết nối được %s: %w", addr, err)
+		return nil, fmt.Errorf(i18n.T("không kết nối được %s: %w", "cannot connect to %s: %w"), addr, err)
 	}
 	// Bound the handshake by ctx as well.
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
@@ -108,9 +114,9 @@ func Dial(ctx context.Context, h *Host) (*Client, error) {
 			return nil, hk
 		}
 		if strings.Contains(err.Error(), "unable to authenticate") {
-			return nil, errors.New("sai tên đăng nhập, mật khẩu hoặc khoá SSH")
+			return nil, errors.New(i18n.T("sai tên đăng nhập, mật khẩu hoặc khoá SSH", "wrong user name, password or SSH key"))
 		}
-		return nil, fmt.Errorf("SSH tới %s: %w", addr, err)
+		return nil, fmt.Errorf(i18n.T("SSH tới %s: %w", "SSH to %s: %w"), addr, err)
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return &Client{c: ssh.NewClient(sc, chans, reqs), host: *h}, nil
@@ -122,24 +128,24 @@ func authMethods(h *Host) ([]ssh.AuthMethod, error) {
 		if len(pem) == 0 {
 			var err error
 			if pem, err = os.ReadFile(h.KeyFile); err != nil {
-				return nil, fmt.Errorf("không đọc được file khoá: %w", err)
+				return nil, fmt.Errorf(i18n.T("không đọc được file khoá: %w", "cannot read the key file: %w"), err)
 			}
 		}
 		signer, err := ssh.ParsePrivateKey(pem)
 		var missing *ssh.PassphraseMissingError
 		if errors.As(err, &missing) {
 			if h.Password == "" {
-				return nil, errors.New("khoá SSH có mật khẩu: nhập mật khẩu của khoá")
+				return nil, errors.New(i18n.T("khoá SSH có mật khẩu: nhập mật khẩu của khoá", "the SSH key is encrypted: enter its passphrase"))
 			}
 			signer, err = ssh.ParsePrivateKeyWithPassphrase(pem, []byte(h.Password))
 		}
 		if err != nil {
-			return nil, fmt.Errorf("file khoá không hợp lệ: %w", err)
+			return nil, fmt.Errorf(i18n.T("file khoá không hợp lệ: %w", "invalid key file: %w"), err)
 		}
 		return []ssh.AuthMethod{ssh.PublicKeys(signer)}, nil
 	}
 	if h.Password == "" {
-		return nil, errors.New("cần mật khẩu hoặc file khoá SSH")
+		return nil, errors.New(i18n.T("cần mật khẩu hoặc file khoá SSH", "a password or an SSH key file is required"))
 	}
 	pw := h.Password
 	return []ssh.AuthMethod{
@@ -167,7 +173,7 @@ func (e *RunError) Error() string {
 	if e.Msg != "" {
 		return e.Msg
 	}
-	return fmt.Sprintf("lệnh trên VPS thất bại (mã %d)", e.Code)
+	return fmt.Sprintf(i18n.T("lệnh trên VPS thất bại (mã %d)", "the command on the VPS failed (exit code %d)"), e.Code)
 }
 
 // Run executes script with bash as root (through sudo when the SSH user is not
@@ -180,7 +186,8 @@ func (c *Client) Run(ctx context.Context, script string, onLine func(string)) (s
 	}
 	defer sess.Close()
 
-	cmd := "bash -c " + quote(script)
+	// bcserver answers in the app's language.
+	cmd := "bash -c " + quote("export BC_LANG="+i18n.Lang()+"; "+script)
 	if c.host.User != "root" {
 		if c.host.Password != "" {
 			// -S reads the password from stdin; NOPASSWD sudo simply ignores it.
@@ -236,14 +243,17 @@ func (c *Client) Run(ctx context.Context, script string, onLine func(string)) (s
 	wg.Wait()
 	err = sess.Wait()
 	if ctx.Err() != nil {
-		return stdout.String(), errors.New("hết thời gian chờ VPS trả lời")
+		return stdout.String(), errors.New(i18n.T("hết thời gian chờ VPS trả lời", "timed out waiting for the VPS"))
 	}
 	if err != nil {
 		var ee *ssh.ExitError
 		if errors.As(err, &ee) {
-			msg := strings.TrimPrefix(lastErr, "Lỗi: ")
+			// bcserver prefixes its errors with "Lỗi: " or "Error: ".
+			msg := strings.TrimPrefix(strings.TrimPrefix(lastErr, "Lỗi: "), "Error: ")
 			if strings.Contains(lastErr, "a password is required") || strings.Contains(lastErr, "incorrect password") {
-				msg = "user " + c.host.User + " cần mật khẩu sudo: nhập mật khẩu khi thêm VPS (hoặc dùng root)"
+				msg = i18n.T(
+					"user "+c.host.User+" cần mật khẩu sudo: nhập mật khẩu khi thêm VPS (hoặc dùng root)",
+					"user "+c.host.User+" needs a sudo password: enter it when adding the VPS (or use root)")
 			}
 			return stdout.String(), &RunError{Code: ee.ExitStatus(), Msg: msg}
 		}

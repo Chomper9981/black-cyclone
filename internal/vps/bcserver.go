@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"black-cyclone/internal/i18n"
 )
 
 const bin = "/usr/local/bin/bcserver"
@@ -227,25 +229,25 @@ func (o InstallOptions) args() ([]string, error) {
 	var a []string
 	if o.Port != 0 {
 		if o.Port < 1 || o.Port > 65535 {
-			return nil, errors.New("cổng phải từ 1 đến 65535")
+			return nil, errors.New(i18n.T("cổng phải từ 1 đến 65535", "the port must be between 1 and 65535"))
 		}
 		a = append(a, "--port", strconv.Itoa(o.Port))
 	}
 	if o.SNI != "" {
 		if !reDomain.MatchString(o.SNI) || !strings.Contains(o.SNI, ".") {
-			return nil, errors.New("SNI phải là tên miền, ví dụ www.microsoft.com")
+			return nil, errors.New(i18n.T("SNI phải là tên miền, ví dụ www.microsoft.com", "the SNI must be a domain, e.g. www.microsoft.com"))
 		}
 		a = append(a, "--sni", o.SNI)
 	}
 	if o.Host != "" {
 		if !reHost.MatchString(o.Host) {
-			return nil, errors.New("địa chỉ phải là IP hoặc tên miền")
+			return nil, errors.New(i18n.T("địa chỉ phải là IP hoặc tên miền", "the address must be an IP or a domain"))
 		}
 		a = append(a, "--host", o.Host)
 	}
 	if o.Name != "" {
 		if !ValidUserName(o.Name) {
-			return nil, errors.New("tên người dùng chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)")
+			return nil, errors.New(i18n.T("tên người dùng chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)", "user names may only contain letters, digits, '.', '_', '-' (32 characters at most)"))
 		}
 		a = append(a, "--name", o.Name)
 	}
@@ -273,7 +275,7 @@ bash "$f" install %s
 // AddUser creates a user and returns their link.
 func (c *Client) AddUser(ctx context.Context, name string) (string, error) {
 	if !ValidUserName(name) {
-		return "", errors.New("tên chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)")
+		return "", errors.New(i18n.T("tên chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)", "names may only contain letters, digits, '.', '_', '-' (32 characters at most)"))
 	}
 	out, err := c.Run(ctx, bin+" add "+name, nil)
 	if err != nil {
@@ -284,12 +286,12 @@ func (c *Client) AddUser(ctx context.Context, name string) (string, error) {
 			return l, nil
 		}
 	}
-	return "", errors.New("VPS không trả về link")
+	return "", errors.New(i18n.T("VPS không trả về link", "the VPS did not return a link"))
 }
 
 func (c *Client) RemoveUser(ctx context.Context, name string) error {
 	if !ValidUserName(name) {
-		return errors.New("tên không hợp lệ")
+		return errors.New(i18n.T("tên không hợp lệ", "invalid name"))
 	}
 	_, err := c.Run(ctx, bin+" remove "+name, nil)
 	return err
@@ -317,7 +319,7 @@ func (c *Client) CheckRoot(ctx context.Context) error {
 		return err
 	}
 	if strings.TrimSpace(out) != "0" {
-		return errors.New("không chạy được lệnh với quyền root")
+		return errors.New(i18n.T("không chạy được lệnh với quyền root", "cannot run commands as root"))
 	}
 	return nil
 }

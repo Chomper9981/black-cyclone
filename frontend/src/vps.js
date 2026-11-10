@@ -17,6 +17,7 @@ import {
     VPSResetTraffic,
 } from '../wailsjs/go/main/App';
 import {EventsOn, ClipboardSetText} from '../wailsjs/runtime/runtime';
+import {t} from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const ARM_MS = 3000;
@@ -25,8 +26,8 @@ const POLL_MS = 20000;   // refresh who is online while the tab is open
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const errText = (e) => {
-    const t = e == null ? 'Lỗi không xác định' : typeof e === 'string' ? e : (e.message || String(e));
-    return t.charAt(0).toUpperCase() + t.slice(1); // Go errors start lowercase
+    const msg = e == null ? t('Lỗi không xác định', 'Unknown error') : typeof e === 'string' ? e : (e.message || String(e));
+    return msg.charAt(0).toUpperCase() + msg.slice(1); // Go errors start lowercase
 };
 function fmtBytes(n) {
     n = Math.max(0, Number(n) || 0);
@@ -76,7 +77,7 @@ function disarm(key) {
 
 function renderList() {
     if (hosts.length === 0) {
-        el.list.innerHTML = '<div class="empty">Chưa có VPS. Thêm VPS bên dưới để cài và quản lý server riêng.</div>';
+        el.list.innerHTML = `<div class="empty">${t('Chưa có VPS. Thêm VPS bên dưới để cài và quản lý server riêng.', 'No VPS yet. Add one below to install and manage your own server.')}</div>`;
         return;
     }
     el.list.innerHTML = hosts.map((h) => {
@@ -85,19 +86,19 @@ function renderList() {
         return `<label class="srv${sel ? ' sel' : ''}">` +
             `<input type="radio" name="vps" value="${esc(h.id)}"${sel ? ' checked' : ''}>` +
             `<span class="srv-main"><span class="srv-name">${esc(h.name)}</span>` +
-            `<span class="srv-meta">${esc(h.user)}@${esc(hostPort(h.addr, h.port))} · ${h.auth === 'key' ? 'khoá SSH' : 'mật khẩu'}</span></span>` +
+            `<span class="srv-meta">${esc(h.user)}@${esc(hostPort(h.addr, h.port))} · ${h.auth === 'key' ? t('khoá SSH', 'SSH key') : t('mật khẩu', 'password')}</span></span>` +
             '<span class="srv-acts">' +
-            `<button type="button" class="icon" data-act="host-edit" data-id="${esc(h.id)}" title="Sửa thông tin đăng nhập" aria-label="Sửa">✎</button>` +
+            `<button type="button" class="icon" data-act="host-edit" data-id="${esc(h.id)}" title="${t('Sửa thông tin đăng nhập', 'Edit the login details')}" aria-label="${t('Sửa', 'Edit')}">✎</button>` +
             `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="host-del" data-id="${esc(h.id)}" ` +
-            `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá khỏi app (server trên VPS vẫn chạy)'}" aria-label="Xoá">${delArmed ? 'xoá?' : '✕'}</button>` +
+            `title="${delArmed ? t('Nhấn lần nữa để xoá', 'Click again to remove') : t('Xoá khỏi app (server trên VPS vẫn chạy)', 'Remove from the app (the server on the VPS keeps running)')}" aria-label="${t('Xoá', 'Remove')}">${delArmed ? t('xoá?', 'remove?') : '✕'}</button>` +
             '</span></label>';
     }).join('');
 }
 
 function stateBadge(active) {
-    if (active === 'active') return '<span class="state on">Đang chạy</span>';
-    if (active === 'activating' || active === 'reloading') return '<span class="state warn">Đang khởi động</span>';
-    return `<span class="state off">${esc(active === 'failed' ? 'Lỗi' : 'Đã dừng')}</span>`;
+    if (active === 'active') return `<span class="state on">${t('Đang chạy', 'Running')}</span>`;
+    if (active === 'activating' || active === 'reloading') return `<span class="state warn">${t('Đang khởi động', 'Starting')}</span>`;
+    return `<span class="state off">${esc(active === 'failed' ? t('Lỗi', 'Failed') : t('Đã dừng', 'Stopped'))}</span>`;
 }
 
 function userMeta(o, u, inApp) {
@@ -106,31 +107,32 @@ function userMeta(o, u, inApp) {
         const ips = u.ips || [];
         const many = ips.length >= MANY_IPS;
         parts.push(`<span class="online${many ? ' many' : ''}" title="${esc(ips.join(', '))}">● online · ${ips.length} IP` +
-            `${many ? ' (link bị chia sẻ?)' : ''}</span>`);
+            `${many ? t(' (link bị chia sẻ?)', ' (link shared?)') : ''}</span>`);
     }
     if (o.stats) parts.push(`↓ ${esc(fmtBytes(u.down))} ↑ ${esc(fmtBytes(u.up))}`);
-    if (inApp) parts.push('<span class="in-app">đã có trong app</span>');
-    if (parts.length === 0) parts.push('link riêng của người này');
+    if (inApp) parts.push(`<span class="in-app">${t('đã có trong app', 'in the app')}</span>`);
+    if (parts.length === 0) parts.push(t('link riêng của người này', 'their own link'));
     return parts.join('<span class="sep">·</span>');
 }
 
 function renderInstallForm(update) {
     const b = op === 'install';
+    const keep = t('giữ nguyên', 'unchanged');
     return '<div class="vps-install">' +
-        (update ? '' : '<p class="hint">Chưa cài server trên VPS này. App sẽ cài sing-box (VLESS + Reality), bật BBR, mở tường lửa và tạo người dùng đầu tiên. Mất khoảng 1–2 phút.</p>' +
-            '<label class="field"><span>Tên người dùng đầu tiên</span>' +
-            '<input id="vi-name" type="text" spellcheck="false" placeholder="vd. laptop-cua-toi (mặc định: default)"></label>') +
-        '<details class="inner"><summary>Tuỳ chọn nâng cao</summary>' +
+        (update ? '' : `<p class="hint">${t('Chưa cài server trên VPS này. App sẽ cài sing-box (VLESS + Reality), bật BBR, mở tường lửa và tạo người dùng đầu tiên. Mất khoảng 1–2 phút.', 'No server on this VPS yet. The app will install sing-box (VLESS + Reality), enable BBR, open the firewall and create the first user. It takes 1–2 minutes.')}</p>` +
+            `<label class="field"><span>${t('Tên người dùng đầu tiên', 'First user name')}</span>` +
+            `<input id="vi-name" type="text" spellcheck="false" placeholder="${t('vd. laptop-cua-toi (mặc định: default)', 'e.g. my-laptop (default: default)')}"></label>`) +
+        `<details class="inner"><summary>${t('Tuỳ chọn nâng cao', 'Advanced options')}</summary>` +
         '<div class="field-row">' +
-        `<label class="field port"><span>Cổng</span><input id="vi-port" type="number" min="1" max="65535" placeholder="${update ? 'giữ nguyên' : '443'}"></label>` +
-        `<label class="field grow"><span>Trang giả làm (SNI)</span><input id="vi-sni" type="text" spellcheck="false" placeholder="${update ? 'giữ nguyên' : 'www.microsoft.com'}"></label>` +
+        `<label class="field port"><span>${t('Cổng', 'Port')}</span><input id="vi-port" type="number" min="1" max="65535" placeholder="${update ? keep : '443'}"></label>` +
+        `<label class="field grow"><span>${t('Trang giả làm (SNI)', 'Site to imitate (SNI)')}</span><input id="vi-sni" type="text" spellcheck="false" placeholder="${update ? keep : 'www.microsoft.com'}"></label>` +
         '</div>' +
-        `<label class="field"><span>Địa chỉ ghi vào link</span><input id="vi-host" type="text" spellcheck="false" placeholder="${update ? 'giữ nguyên' : 'để trống: IP công khai của VPS'}"></label>` +
-        '<p class="hint">Đổi cổng, SNI hoặc địa chỉ thì link cũ của mọi người hết dùng được: gửi lại link mới cho họ.</p>' +
+        `<label class="field"><span>${t('Địa chỉ ghi vào link', 'Address written into links')}</span><input id="vi-host" type="text" spellcheck="false" placeholder="${update ? keep : t('để trống: IP công khai của VPS', "empty: the VPS's public IP")}"></label>` +
+        `<p class="hint">${t('Đổi cổng, SNI hoặc địa chỉ thì link cũ của mọi người hết dùng được: gửi lại link mới cho họ.', "Changing the port, SNI or address invalidates everyone's old links: send them the new ones.")}</p>` +
         '</details>' +
         '<div class="row end">' +
-        (update ? '<button type="button" class="link" data-act="install-cancel">huỷ</button>' : '') +
-        `<button type="button" class="btn sm" data-act="install"${b || op ? ' disabled' : ''}>${b ? 'Đang cài…' : update ? 'Cập nhật server' : 'Cài server'}</button>` +
+        (update ? `<button type="button" class="link" data-act="install-cancel">${t('huỷ', 'cancel')}</button>` : '') +
+        `<button type="button" class="btn sm" data-act="install"${b || op ? ' disabled' : ''}>${b ? t('Đang cài…', 'Installing…') : update ? t('Cập nhật server', 'Update server') : t('Cài server', 'Install server')}</button>` +
         '</div></div>';
 }
 
@@ -142,19 +144,19 @@ function renderDetail() {
     if (!h) return;
     el.title.textContent = h.name;
     el.refresh.disabled = !!op;
-    el.refresh.textContent = op === 'load' ? 'đang tải…' : 'làm mới';
+    el.refresh.textContent = op === 'load' ? t('đang tải…', 'loading…') : t('làm mới', 'refresh');
 
     const ov = overviews.get(h.id);
     let html = '';
     if (!ov || ov.state === 'loading') {
-        html = '<div class="empty">Đang kết nối tới VPS…</div>';
+        html = `<div class="empty">${t('Đang kết nối tới VPS…', 'Connecting to the VPS…')}</div>`;
     } else if (ov.state === 'error') {
         html = `<div class="ip-err">${esc(ov.error)}</div>`;
-        if (ov.error.includes('khoá SSH của VPS đã thay đổi')) {
-            const t = armed.has('trust');
-            html += '<p class="hint">Chỉ chấp nhận khoá mới nếu chính bạn vừa cài lại hệ điều hành VPS hoặc nhà cung cấp vừa đổi máy.</p>' +
+        if (/khoá SSH của VPS đã thay đổi|SSH key has changed/i.test(ov.error)) {
+            const trustArmed = armed.has('trust');
+            html += `<p class="hint">${t('Chỉ chấp nhận khoá mới nếu chính bạn vừa cài lại hệ điều hành VPS hoặc nhà cung cấp vừa đổi máy.', "Accept the new key only if you have just reinstalled the VPS's operating system or your provider moved it to another machine.")}</p>` +
                 `<div class="row"><button type="button" class="btn ghost sm danger" data-act="trust"${op ? ' disabled' : ''}>` +
-                `${op === 'trust' ? 'Đang kết nối…' : t ? 'Nhấn lần nữa: tôi vừa cài lại VPS' : 'Chấp nhận khoá mới'}</button></div>`;
+                `${op === 'trust' ? t('Đang kết nối…', 'Connecting…') : trustArmed ? t('Nhấn lần nữa: tôi vừa cài lại VPS', 'Click again: I have just reinstalled the VPS') : t('Chấp nhận khoá mới', 'Accept the new key')}</button></div>`;
         }
     } else if (!ov.data.installed) {
         html = renderInstallForm(false);
@@ -162,14 +164,14 @@ function renderDetail() {
         const o = ov.data;
         const inApp = new Set((app.getServers() || []).map((s) => s.link));
         html += '<div class="ip-grid vps-grid">' +
-            `<span>Trạng thái</span>${stateBadge(o.active)}` +
+            `<span>${t('Trạng thái', 'State')}</span>${stateBadge(o.active)}` +
             `<span>sing-box</span><b>${esc(o.version || '?')}</b>` +
-            `<span>Địa chỉ</span><code class="wide">${esc(hostPort(o.host, o.port))}</code>` +
+            `<span>${t('Địa chỉ', 'Address')}</span><code class="wide">${esc(hostPort(o.host, o.port))}</code>` +
             `<span>SNI</span><code class="wide">${esc(o.sni)}</code>` +
             '</div>';
         if (o.script_outdated && !showUpdate) {
-            html += '<div class="vps-note">Bản server trên VPS cũ hơn bản đi kèm app này. ' +
-                `<button type="button" class="link" data-act="show-update"${op ? ' disabled' : ''}>cập nhật</button></div>`;
+            html += `<div class="vps-note">${t('Bản server trên VPS cũ hơn bản đi kèm app này.', 'The server on the VPS is older than the one shipped with this app.')} ` +
+                `<button type="button" class="link" data-act="show-update"${op ? ' disabled' : ''}>${t('cập nhật', 'update')}</button></div>`;
         }
 
         let total = '';
@@ -177,13 +179,13 @@ function renderDetail() {
             const up = o.users.reduce((a, u) => a + (u.up || 0), 0);
             const down = o.users.reduce((a, u) => a + (u.down || 0), 0);
             const rArmed = armed.has('reset');
-            total = `<span class="vps-total">tổng ↓ ${esc(fmtBytes(down))} ↑ ${esc(fmtBytes(up))}</span>` +
-                `<button type="button" class="link" data-act="reset"${op ? ' disabled' : ''} title="Đặt lại thống kê lưu lượng của mọi người về 0">` +
-                `${op === 'reset' ? 'đang đặt lại…' : rArmed ? 'nhấn lần nữa để đặt lại' : 'đặt lại'}</button>`;
+            total = `<span class="vps-total">${t('tổng', 'total')} ↓ ${esc(fmtBytes(down))} ↑ ${esc(fmtBytes(up))}</span>` +
+                `<button type="button" class="link" data-act="reset"${op ? ' disabled' : ''} title="${t('Đặt lại thống kê lưu lượng của mọi người về 0', "Reset everyone's traffic counters to 0")}">` +
+                `${op === 'reset' ? t('đang đặt lại…', 'resetting…') : rArmed ? t('nhấn lần nữa để đặt lại', 'click again to reset') : t('đặt lại', 'reset')}</button>`;
         }
         const online = o.users.filter((u) => u.conns > 0).length;
-        html += '<div class="vps-sub"><span>Người dùng <span class="count">(' + o.users.length +
-            (o.online ? `, ${online} đang online` : '') + ')</span></span>' + total + '</div><div class="sub-list">';
+        html += `<div class="vps-sub"><span>${t('Người dùng', 'Users')} <span class="count">(` + o.users.length +
+            (o.online ? t(`, ${online} đang online`, `, ${online} online`) : '') + ')</span></span>' + total + '</div><div class="sub-list">';
         for (const u of o.users || []) {
             const delArmed = armed.has('user:' + u.name);
             const has = inApp.has(u.link);
@@ -192,37 +194,39 @@ function renderDetail() {
                 `<span class="srv-main"><span class="srv-name">${esc(u.name)}</span>` +
                 `<span class="srv-meta">${userMeta(o, u, has)}</span></span>` +
                 '<span class="srv-acts">' +
-                `<button type="button" class="icon${qr && qr.id === h.id && qr.name === u.name ? ' on' : ''}" data-act="qr" data-name="${esc(u.name)}" title="Hiện mã QR để điện thoại quét">QR</button>` +
-                `<button type="button" class="icon" data-act="copy" data-name="${esc(u.name)}" title="Copy link để gửi cho người này">copy</button>` +
-                (has ? '' : `<button type="button" class="icon" data-act="import" data-name="${esc(u.name)}" title="Thêm link này vào danh sách server của app trên máy này">+ app</button>`) +
+                `<button type="button" class="icon${qr && qr.id === h.id && qr.name === u.name ? ' on' : ''}" data-act="qr" data-name="${esc(u.name)}" title="${t('Hiện mã QR để điện thoại quét', 'Show a QR code for a phone to scan')}">QR</button>` +
+                `<button type="button" class="icon" data-act="copy" data-name="${esc(u.name)}" title="${t('Copy link để gửi cho người này', 'Copy the link to send to this user')}">copy</button>` +
+                (has ? '' : `<button type="button" class="icon" data-act="import" data-name="${esc(u.name)}" title="${t('Thêm link này vào danh sách server của app trên máy này', "Add this link to this computer's server list")}">+ app</button>`) +
                 (last ? '' : `<button type="button" class="icon del${delArmed ? ' armed' : ''}" data-act="user-del" data-name="${esc(u.name)}" ` +
-                    `title="${delArmed ? 'Nhấn lần nữa để xoá' : 'Xoá người dùng: link của họ hết dùng được ngay'}" aria-label="Xoá"${op ? ' disabled' : ''}>${delArmed ? 'xoá?' : '✕'}</button>`) +
+                    `title="${delArmed ? t('Nhấn lần nữa để xoá', 'Click again to remove') : t('Xoá người dùng: link của họ hết dùng được ngay', 'Remove the user: their link stops working at once')}" aria-label="${t('Xoá', 'Remove')}"${op ? ' disabled' : ''}>${delArmed ? t('xoá?', 'remove?') : '✕'}</button>`) +
                 '</span></div>';
             if (qr && qr.id === h.id && qr.name === u.name) {
                 html += '<div class="qr-box">' +
-                    `<img src="${esc(qr.src)}" alt="Mã QR link của ${esc(u.name)}" width="220" height="220">` +
-                    `<p class="hint">Trên điện thoại của <b>${esc(u.name)}</b>: quét bằng camera hoặc Google Lens, copy link rồi dán vào Black Cyclone → Server riêng. ` +
-                    'Mã QR chứa link đầy đủ: ai chụp được nó cũng dùng được server.</p></div>';
+                    `<img src="${esc(qr.src)}" alt="${t('Mã QR link của', 'QR code of the link of')} ${esc(u.name)}" width="220" height="220">` +
+                    '<p class="hint">' + t(`Trên điện thoại của <b>${esc(u.name)}</b>: quét bằng camera hoặc Google Lens, copy link rồi dán vào Black Cyclone → Server riêng. ` +
+                    'Mã QR chứa link đầy đủ: ai chụp được nó cũng dùng được server.',
+                    `On <b>${esc(u.name)}</b>'s phone: scan with the camera or Google Lens, copy the link and paste it into Black Cyclone → Own server. ` +
+                    'The QR code holds the whole link: anyone who photographs it can use the server.') + '</p></div>';
             }
         }
         html += '</div>';
         html += '<div class="row">' +
-            '<input id="vu-name" type="text" spellcheck="false" placeholder="Tên người dùng mới, vd. dien-thoai-me">' +
-            `<button type="button" class="btn sm" data-act="user-add"${op ? ' disabled' : ''}>${op === 'user-add' ? 'Đang thêm…' : 'Thêm'}</button></div>` +
-            '<p class="hint">Mỗi người / thiết bị một tên. Muốn cắt quyền ai thì chỉ cần xoá đúng tên đó.</p>';
+            `<input id="vu-name" type="text" spellcheck="false" placeholder="${t('Tên người dùng mới, vd. dien-thoai-me', 'New user name, e.g. moms-phone')}">` +
+            `<button type="button" class="btn sm" data-act="user-add"${op ? ' disabled' : ''}>${op === 'user-add' ? t('Đang thêm…', 'Adding…') : t('Thêm', 'Add')}</button></div>` +
+            `<p class="hint">${t('Mỗi người / thiết bị một tên. Muốn cắt quyền ai thì chỉ cần xoá đúng tên đó.', "One name per person / device. To cut someone off, remove just their name.")}</p>`;
 
         if (showUpdate) html += renderInstallForm(true);
 
         const unArmed = armed.has('uninstall');
         html += '<div class="vps-actions">' +
-            `<button type="button" class="btn ghost sm" data-act="restart"${op ? ' disabled' : ''}>${op === 'restart' ? 'Đang khởi động lại…' : 'Khởi động lại'}</button>` +
-            `<button type="button" class="btn ghost sm" data-act="logs"${op ? ' disabled' : ''}>${op === 'logs' ? 'Đang tải…' : 'Xem log'}</button>` +
-            (showUpdate ? '' : `<button type="button" class="btn ghost sm" data-act="show-update"${op ? ' disabled' : ''}>Cập nhật / đổi cấu hình</button>`) +
+            `<button type="button" class="btn ghost sm" data-act="restart"${op ? ' disabled' : ''}>${op === 'restart' ? t('Đang khởi động lại…', 'Restarting…') : t('Khởi động lại', 'Restart')}</button>` +
+            `<button type="button" class="btn ghost sm" data-act="logs"${op ? ' disabled' : ''}>${op === 'logs' ? t('Đang tải…', 'Loading…') : t('Xem log', 'View log')}</button>` +
+            (showUpdate ? '' : `<button type="button" class="btn ghost sm" data-act="show-update"${op ? ' disabled' : ''}>${t('Cập nhật / đổi cấu hình', 'Update / change settings')}</button>`) +
             `<button type="button" class="btn ghost sm danger" data-act="uninstall"${op ? ' disabled' : ''}>` +
-            `${op === 'uninstall' ? 'Đang gỡ…' : unArmed ? 'Nhấn lần nữa: gỡ hết, mọi link mất hiệu lực' : 'Gỡ server'}</button>` +
+            `${op === 'uninstall' ? t('Đang gỡ…', 'Removing…') : unArmed ? t('Nhấn lần nữa: gỡ hết, mọi link mất hiệu lực', 'Click again: removes everything, all links stop working') : t('Gỡ server', 'Remove server')}</button>` +
             '</div>';
     }
-    html += `<div class="vps-fp">Khoá SSH: <code>${esc(h.fingerprint || '?')}</code></div>`;
+    html += `<div class="vps-fp">${t('Khoá SSH', 'SSH key')}: <code>${esc(h.fingerprint || '?')}</code></div>`;
 
     // Keep what the user is typing across re-renders.
     const keep = {};
@@ -251,13 +255,13 @@ function renderDetail() {
 function renderForm() {
     const key = el.form.querySelector('input[name="vps-auth"]:checked')?.value === 'key';
     el.keyRow.hidden = !key;
-    el.passLabel.textContent = key ? 'Mật khẩu (của khoá hoặc sudo, nếu có)' : 'Mật khẩu';
+    el.passLabel.textContent = key ? t('Mật khẩu (của khoá hoặc sudo, nếu có)', 'Password (of the key or sudo, if any)') : t('Mật khẩu', 'Password');
     el.addBtn.disabled = adding;
-    el.addBtn.textContent = adding ? 'Đang kiểm tra…' : editing ? 'Lưu thay đổi' : 'Kiểm tra & lưu';
+    el.addBtn.textContent = adding ? t('Đang kiểm tra…', 'Checking…') : editing ? t('Lưu thay đổi', 'Save changes') : t('Kiểm tra & lưu', 'Check & save');
     const h = editing && hosts.find((x) => x.id === editing);
-    el.summary.textContent = h ? `Sửa VPS: ${h.name}` : 'Thêm VPS';
+    el.summary.textContent = h ? `${t('Sửa VPS', 'Edit VPS')}: ${h.name}` : t('Thêm VPS', 'Add a VPS');
     el.cancelEdit.hidden = !editing;
-    el.pass.placeholder = editing ? 'để trống: giữ mật khẩu đã lưu' : '';
+    el.pass.placeholder = editing ? t('để trống: giữ mật khẩu đã lưu', 'empty: keep the saved password') : '';
 }
 
 function fillForm(h) {
@@ -376,12 +380,12 @@ async function onAddHost() {
         password: el.pass.value,
         key_file: auth === 'key' ? el.key.value.trim() : '',
     };
-    if (!input.addr) { setMsg(el.msg, 'Nhập IP hoặc tên miền của VPS.', true); return; }
-    if (auth === 'key' && !input.key_file) { setMsg(el.msg, 'Chọn file khoá SSH.', true); return; }
+    if (!input.addr) { setMsg(el.msg, t('Nhập IP hoặc tên miền của VPS.', "Enter the VPS's IP or domain."), true); return; }
+    if (auth === 'key' && !input.key_file) { setMsg(el.msg, t('Chọn file khoá SSH.', 'Choose the SSH key file.'), true); return; }
     const old = editing && hosts.find((x) => x.id === editing);
     // Editing: an empty password keeps the saved one (unless switching to password login).
     if (auth !== 'key' && !input.password && !(old && old.auth === 'password')) {
-        setMsg(el.msg, 'Nhập mật khẩu SSH.', true);
+        setMsg(el.msg, t('Nhập mật khẩu SSH.', 'Enter the SSH password.'), true);
         return;
     }
     adding = true;
@@ -393,7 +397,7 @@ async function onAddHost() {
         editing = null;
         fillForm(null);
         el.addBox.open = false;
-        setMsg(el.msg, id ? `Đã lưu ${v.name}.` : `Đã thêm ${v.name}. Khoá SSH của VPS: ${v.fingerprint}`);
+        setMsg(el.msg, id ? t(`Đã lưu ${v.name}.`, `Saved ${v.name}.`) : t(`Đã thêm ${v.name}. Khoá SSH của VPS: ${v.fingerprint}`, `Added ${v.name}. The VPS's SSH key: ${v.fingerprint}`));
         if (id) overviews.delete(id);
         await loadHosts();
         if (id && selected === id) ensureLoaded(); else select(v.id);
@@ -420,7 +424,7 @@ async function onListClick(ev) {
         overviews.delete(id);
         if (selected === id) selected = null;
         if (editing === id) stopEdit();
-        setMsg(el.msg, 'Đã xoá VPS khỏi app. Server trên VPS vẫn chạy, link của mọi người vẫn dùng được.');
+        setMsg(el.msg, t('Đã xoá VPS khỏi app. Server trên VPS vẫn chạy, link của mọi người vẫn dùng được.', "Removed the VPS from the app. The server on it keeps running and everyone's links still work."));
         await loadHosts();
         if (selected) refresh();
     } catch (e) {
@@ -456,7 +460,7 @@ async function onDetailClick(ev) {
         try {
             qr = {id: selected, name, src: await VPSLinkQR(user.link)};
         } catch (e) {
-            setMsg(el.detailMsg, 'Không tạo được mã QR: ' + errText(e), true);
+            setMsg(el.detailMsg, t('Không tạo được mã QR: ', 'Could not create the QR code: ') + errText(e), true);
         }
         render();
         return;
@@ -464,16 +468,16 @@ async function onDetailClick(ev) {
         if (!user) return;
         try {
             await ClipboardSetText(user.link);
-            setMsg(el.detailMsg, `Đã copy link của ${name}. Gửi riêng cho người đó, đừng đăng công khai.`);
+            setMsg(el.detailMsg, t(`Đã copy link của ${name}. Gửi riêng cho người đó, đừng đăng công khai.`, `Copied ${name}'s link. Send it to them privately; do not post it publicly.`));
         } catch (e) {
-            setMsg(el.detailMsg, 'Không copy được: ' + errText(e), true);
+            setMsg(el.detailMsg, t('Không copy được: ', 'Could not copy: ') + errText(e), true);
         }
         return;
     case 'import':
         if (!user) return;
         try {
             await app.importLinks(user.link);
-            setMsg(el.detailMsg, `Đã thêm link của ${name} vào tab Kết nối → Server riêng.`);
+            setMsg(el.detailMsg, t(`Đã thêm link của ${name} vào tab Kết nối → Server riêng.`, `Added ${name}'s link to the Connect tab → Own server.`));
         } catch (e) {
             setMsg(el.detailMsg, errText(e), true);
         }
@@ -483,10 +487,10 @@ async function onDetailClick(ev) {
         const inp = $('vu-name');
         const n = (inp?.value || '').trim();
         if (!/^[A-Za-z0-9._-]{1,32}$/.test(n)) {
-            setMsg(el.detailMsg, 'Tên chỉ gồm chữ không dấu, số, ".", "_", "-" (tối đa 32 ký tự).', true);
+            setMsg(el.detailMsg, t('Tên chỉ gồm chữ không dấu, số, ".", "_", "-" (tối đa 32 ký tự).', 'Names may only contain letters, digits, ".", "_", "-" (32 characters at most).'), true);
             return;
         }
-        const r = await run('user-add', (id) => VPSAddUser(id, n), `Đã thêm ${n}. Bấm "copy" để lấy link gửi cho họ.`);
+        const r = await run('user-add', (id) => VPSAddUser(id, n), t(`Đã thêm ${n}. Bấm "copy" để lấy link gửi cho họ.`, `Added ${n}. Click "copy" to get the link to send them.`));
         if (r && inp) { const fresh = $('vu-name'); if (fresh) fresh.value = ''; }
         return;
     }
@@ -495,7 +499,7 @@ async function onDetailClick(ev) {
         if (!armed.has(key)) { arm(key); return; }
         disarm(key);
         if (qr && qr.name === name) qr = null;
-        run('user-del', (id) => VPSRemoveUser(id, name), `Đã xoá ${name}: link của người này hết dùng được.`);
+        run('user-del', (id) => VPSRemoveUser(id, name), t(`Đã xoá ${name}: link của người này hết dùng được.`, `Removed ${name}: their link no longer works.`));
         return;
     }
     case 'trust': {
@@ -505,16 +509,16 @@ async function onDetailClick(ev) {
             await TrustNewVPSKey(id);
             await loadHosts(); // shows the new fingerprint
             return VPSOverview(id);
-        }, 'Đã chấp nhận khoá SSH mới của VPS.');
+        }, t('Đã chấp nhận khoá SSH mới của VPS.', "Accepted the VPS's new SSH key."));
         return;
     }
     case 'reset':
         if (!armed.has('reset')) { arm('reset'); return; }
         disarm('reset');
-        run('reset', VPSResetTraffic, 'Đã đặt lại thống kê lưu lượng.');
+        run('reset', VPSResetTraffic, t('Đã đặt lại thống kê lưu lượng.', 'Traffic counters reset.'));
         return;
     case 'restart':
-        run('restart', VPSRestart, 'Đã khởi động lại server.');
+        run('restart', VPSRestart, t('Đã khởi động lại server.', 'Server restarted.'));
         return;
     case 'logs':
         run('logs', async (id) => { await showLogs(id); return undefined; });
@@ -532,12 +536,12 @@ async function onDetailClick(ev) {
         const update = ov?.state === 'ok' && ov.data.installed;
         const opts = installOpts(update);
         if (opts.name && !/^[A-Za-z0-9._-]{1,32}$/.test(opts.name)) {
-            setMsg(el.detailMsg, 'Tên chỉ gồm chữ không dấu, số, ".", "_", "-" (tối đa 32 ký tự).', true);
+            setMsg(el.detailMsg, t('Tên chỉ gồm chữ không dấu, số, ".", "_", "-" (tối đa 32 ký tự).', 'Names may only contain letters, digits, ".", "_", "-" (32 characters at most).'), true);
             return;
         }
         outFor = selected;
         outLines = [];
-        const r = await run('install', (id) => VPSInstall(id, opts), update ? 'Đã cập nhật server.' : 'Đã cài server. Thêm link vào app bằng nút "+ app".');
+        const r = await run('install', (id) => VPSInstall(id, opts), update ? t('Đã cập nhật server.', 'Server updated.') : t('Đã cài server. Thêm link vào app bằng nút "+ app".', 'Server installed. Add the link to the app with the "+ app" button.'));
         if (r) showUpdate = false;
         render();
         return;
@@ -546,7 +550,7 @@ async function onDetailClick(ev) {
         if (!armed.has('uninstall')) { arm('uninstall'); return; }
         disarm('uninstall');
         showUpdate = false;
-        run('uninstall', VPSUninstall, 'Đã gỡ server khỏi VPS.');
+        run('uninstall', VPSUninstall, t('Đã gỡ server khỏi VPS.', 'Server removed from the VPS.'));
         return;
     }
 }
@@ -555,7 +559,7 @@ async function showLogs(id) {
     const text = await VPSLogs(id);
     outFor = id;
     outLines = String(text || '').replace(/\n$/, '').split('\n').slice(-OUT_MAX);
-    if (outLines.length === 1 && !outLines[0]) outLines = ['(chưa có log)'];
+    if (outLines.length === 1 && !outLines[0]) outLines = [t('(chưa có log)', '(no log yet)')];
 }
 
 function onDetailKey(ev) {

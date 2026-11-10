@@ -12,6 +12,16 @@
 # Cần: Linux có systemd (Ubuntu, Debian, Rocky, Alma…), x86_64 hoặc arm64, quyền root.
 set -euo pipefail
 
+# Language of the messages: BC_LANG=vi|en (the app passes it), else the
+# shell's locale (Vietnamese locales get Vietnamese, everything else English).
+case ${BC_LANG:-${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}} in
+vi | vi_* | vi-*) BC_LANG=vi ;;
+*) BC_LANG=en ;;
+esac
+
+# L "tiếng Việt" "English": the message in the chosen language.
+L() { if [ "$BC_LANG" = vi ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+
 # Cùng phiên bản và SHA-256 với linux/fetch-bins.sh: cập nhật cả hai cùng lúc.
 SB_VERSION=1.14.3
 SB_SHA256_AMD64=e2bdf179c15a3652955dc44867e33ca0965c9c9b91b34267dcc5a5d639a5feee
@@ -40,11 +50,11 @@ DEFAULT_USER=default
 
 PORT= SNI= HOST= PRIVATE_KEY= PUBLIC_KEY= SHORT_ID= API_SECRET=
 
-die() { echo "Lỗi: $*" >&2; exit 1; }
+die() { echo "$(L "Lỗi" "Error"): $*" >&2; exit 1; }
 info() { echo "==> $*"; }
-warn() { echo "Cảnh báo: $*" >&2; }
+warn() { echo "$(L "Cảnh báo" "Warning"): $*" >&2; }
 
-need_root() { [ "$(id -u)" -eq 0 ] || die "cần quyền root: chạy lại với sudo"; }
+need_root() { [ "$(id -u)" -eq 0 ] || die "$(L "cần quyền root: chạy lại với sudo" "root is required: run again with sudo")"; }
 
 valid_name() { [[ $1 =~ ^[A-Za-z0-9._-]{1,32}$ ]]; }
 valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && (($1 >= 1 && $1 <= 65535)); }
@@ -56,7 +66,7 @@ valid_key() { [[ $1 =~ ^[A-Za-z0-9_-]{40,50}$ ]]; }
 
 # read_state loads server.conf without executing it.
 read_state() {
-    [ -f "$STATE" ] || die "server chưa được cài: chạy bcserver install"
+    [ -f "$STATE" ] || die "$(L "server chưa được cài: chạy bcserver install" "the server is not installed: run bcserver install")"
     local k v
     while IFS='=' read -r k v; do
         case $k in
@@ -65,7 +75,7 @@ read_state() {
     done <"$STATE"
     valid_port "$PORT" && valid_domain "$SNI" && valid_host "$HOST" && valid_key "$PRIVATE_KEY" &&
         valid_key "$PUBLIC_KEY" && [[ $SHORT_ID =~ ^[0-9a-f]{16}$ ]] &&
-        [[ -z $API_SECRET || $API_SECRET =~ ^[0-9a-f]{32}$ ]] || die "$STATE bị hỏng"
+        [[ -z $API_SECRET || $API_SECRET =~ ^[0-9a-f]{32}$ ]] || die "$(L "$STATE bị hỏng" "$STATE is corrupted")"
 }
 
 write_state() {
@@ -84,7 +94,7 @@ gen_keys() {
     PRIVATE_KEY=$(awk '/PrivateKey/ {print $2}' <<<"$out")
     PUBLIC_KEY=$(awk '/PublicKey/ {print $2}' <<<"$out")
     SHORT_ID=$("$SB" generate rand --hex 8)
-    valid_key "$PRIVATE_KEY" && valid_key "$PUBLIC_KEY" || die "không tạo được khoá Reality: $out"
+    valid_key "$PRIVATE_KEY" && valid_key "$PUBLIC_KEY" || die "$(L "không tạo được khoá Reality: $out" "could not generate the Reality keys: $out")"
 }
 
 user_uuid() { awk -v n="$1" '$1 == n {print $2; exit}' "$USERS" 2>/dev/null; }
@@ -189,7 +199,7 @@ apply_config() {
     render_config >"$tmp"
     if ! "$SB" check -c "$tmp"; then
         rm -f "$tmp"
-        die "cấu hình mới không hợp lệ, giữ nguyên cấu hình cũ"
+        die "$(L "cấu hình mới không hợp lệ, giữ nguyên cấu hình cũ" "the new configuration is invalid, keeping the old one")"
     fi
     if id "$SVC_USER" >/dev/null 2>&1; then
         chown "root:$SVC_USER" "$tmp"
@@ -219,7 +229,11 @@ print_links() {
         link_for "$name" "$uuid"
         echo
     done <"$USERS"
-    ((found)) || die "không có người dùng ${only:-nào}"
+    ((found)) && return
+    if [ -n "$only" ]; then
+        die "$(L "không có người dùng $only" "no user named $only")"
+    fi
+    die "$(L "không có người dùng nào" "there are no users")"
 }
 
 # ---------------------------------------------------------------- traffic stats
@@ -289,9 +303,9 @@ stats_setup() {
     stats_supported || return 0
     [ -f "$USERS" ] || return 0
     stats_sync
-    stats_setup_family iptables || warn "không đặt được luật đếm lưu lượng (IPv4)"
+    stats_setup_family iptables || warn "$(L "không đặt được luật đếm lưu lượng (IPv4)" "could not set up the traffic counting rules (IPv4)")"
     if command -v ip6tables >/dev/null && [ -e /proc/net/if_inet6 ]; then
-        stats_setup_family ip6tables || warn "không đặt được luật đếm lưu lượng (IPv6)"
+        stats_setup_family ip6tables || warn "$(L "không đặt được luật đếm lưu lượng (IPv6)" "could not set up the traffic counting rules (IPv6)")"
     fi
 }
 
@@ -314,7 +328,7 @@ ensure_deps() {
         command -v "$c" >/dev/null || missing+=("$c")
     done
     ((${#missing[@]} == 0)) && return
-    info "Cài thêm: ${missing[*]}"
+    info "$(L "Cài thêm: ${missing[*]}" "Installing: ${missing[*]}")"
     if command -v apt-get >/dev/null; then
         apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl tar coreutils gawk >/dev/null
     elif command -v dnf >/dev/null; then
@@ -322,14 +336,14 @@ ensure_deps() {
     elif command -v yum >/dev/null; then
         yum install -y -q curl tar coreutils gawk >/dev/null
     else
-        die "thiếu ${missing[*]} và không biết cách cài trên hệ điều hành này"
+        die "$(L "thiếu ${missing[*]} và không biết cách cài trên hệ điều hành này" "${missing[*]} missing, and no known way to install on this operating system")"
     fi
 }
 
 # ensure_iptables installs iptables for the traffic stats; the server works without it.
 ensure_iptables() {
     command -v iptables >/dev/null && return
-    info "Cài thêm: iptables (để thống kê lưu lượng từng người dùng)"
+    info "$(L "Cài thêm: iptables (để thống kê lưu lượng từng người dùng)" "Installing: iptables (for per-user traffic statistics)")"
     if command -v apt-get >/dev/null; then
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables >/dev/null 2>&1 ||
             { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables >/dev/null 2>&1; } || true
@@ -338,7 +352,7 @@ ensure_iptables() {
     elif command -v yum >/dev/null; then
         yum install -y -q iptables >/dev/null 2>&1 || true
     fi
-    command -v iptables >/dev/null || warn "không cài được iptables: server vẫn chạy, nhưng không thống kê được lưu lượng"
+    command -v iptables >/dev/null || warn "$(L "không cài được iptables: server vẫn chạy, nhưng không thống kê được lưu lượng" "could not install iptables: the server still runs, but without traffic statistics")"
 }
 
 install_singbox() {
@@ -346,23 +360,23 @@ install_singbox() {
     case $(uname -m) in
     x86_64 | amd64) arch=amd64 sum=$SB_SHA256_AMD64 ;;
     aarch64 | arm64) arch=arm64 sum=$SB_SHA256_ARM64 ;;
-    *) die "kiến trúc $(uname -m) chưa được hỗ trợ (cần x86_64 hoặc arm64)" ;;
+    *) die "$(L "kiến trúc $(uname -m) chưa được hỗ trợ (cần x86_64 hoặc arm64)" "architecture $(uname -m) is not supported (x86_64 or arm64 required)")" ;;
     esac
     if [ -x "$SB" ] && "$SB" version 2>/dev/null | head -n1 | grep -q "version $SB_VERSION\$"; then
-        info "sing-box $SB_VERSION đã có sẵn"
+        info "$(L "sing-box $SB_VERSION đã có sẵn" "sing-box $SB_VERSION is already installed")"
         return
     fi
     local url="https://github.com/SagerNet/sing-box/releases/download/v$SB_VERSION/sing-box-$SB_VERSION-linux-$arch.tar.gz"
     local tmp
     tmp=$(mktemp -d)
-    info "Tải sing-box $SB_VERSION ($arch)"
+    info "$(L "Tải sing-box $SB_VERSION ($arch)" "Downloading sing-box $SB_VERSION ($arch)")"
     if ! curl -fsSL --retry 3 -o "$tmp/sb.tar.gz" "$url"; then
         rm -rf "$tmp"
-        die "không tải được $url"
+        die "$(L "không tải được $url" "could not download $url")"
     fi
     if ! echo "$sum  $tmp/sb.tar.gz" | sha256sum -c --status -; then
         rm -rf "$tmp"
-        die "sing-box: sai SHA-256, file tải về không đúng"
+        die "$(L "sing-box: sai SHA-256, file tải về không đúng" "sing-box: SHA-256 mismatch, the downloaded file is not the expected one")"
     fi
     tar -xzf "$tmp/sb.tar.gz" -C "$tmp"
     mkdir -p "$OPT"
@@ -379,14 +393,14 @@ detect_host() {
     done
     ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}')
     [ -n "$ip" ] && { echo "$ip"; return; }
-    die "không tự tìm được IP công khai của VPS: chạy lại với --host <IP>"
+    die "$(L "không tự tìm được IP công khai của VPS: chạy lại với --host <IP>" "could not detect the public IP of the VPS: run again with --host <IP>")"
 }
 
 check_port_free() {
     command -v ss >/dev/null || return 0
     local used
     used=$(ss -Hltnp "sport = :$PORT" 2>/dev/null | grep -v '"sing-box"' || true)
-    [ -z "$used" ] || die "cổng $PORT đang bị chương trình khác dùng (tắt nó đi hoặc chọn --port khác):
+    [ -z "$used" ] || die "$(L "cổng $PORT đang bị chương trình khác dùng (tắt nó đi hoặc chọn --port khác):" "port $PORT is in use by another program (stop it or choose another --port):")
 $used"
 }
 
@@ -442,30 +456,30 @@ enable_bbr() {
     if grep -qw bbr /proc/sys/net/ipv4/tcp_available_congestion_control 2>/dev/null; then
         printf 'net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n' >"$SYSCTL"
         if sysctl -q -p "$SYSCTL" 2>/dev/null; then
-            info "Đã bật TCP BBR"
+            info "$(L "Đã bật TCP BBR" "TCP BBR enabled")"
         else
-            warn "không bật được BBR (VPS dạng container?); server vẫn chạy bình thường"
+            warn "$(L "không bật được BBR (VPS dạng container?); server vẫn chạy bình thường" "could not enable BBR (container-based VPS?); the server still works normally")"
         fi
     else
-        warn "kernel không có BBR; server vẫn chạy bình thường"
+        warn "$(L "kernel không có BBR; server vẫn chạy bình thường" "the kernel has no BBR; the server still works normally")"
     fi
 }
 
 open_firewall() {
     if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q '^Status: active'; then
-        ufw allow "$PORT/tcp" >/dev/null && info "ufw: đã mở cổng $PORT/tcp"
+        ufw allow "$PORT/tcp" >/dev/null && info "$(L "ufw: đã mở cổng $PORT/tcp" "ufw: opened port $PORT/tcp")"
     elif command -v firewall-cmd >/dev/null && systemctl is-active --quiet firewalld; then
         firewall-cmd -q --permanent --add-port="$PORT/tcp" && firewall-cmd -q --reload &&
-            info "firewalld: đã mở cổng $PORT/tcp"
+            info "$(L "firewalld: đã mở cổng $PORT/tcp" "firewalld: opened port $PORT/tcp")"
     elif command -v iptables >/dev/null && iptables -S INPUT 2>/dev/null | grep -qE -- '^-P INPUT DROP|-j (REJECT|DROP)'; then
         # Ví dụ ảnh Ubuntu của Oracle Cloud: iptables chặn sẵn mọi cổng trừ SSH.
         iptables -C INPUT -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null ||
             iptables -I INPUT -p tcp --dport "$PORT" -j ACCEPT
-        info "iptables: đã mở cổng $PORT/tcp"
+        info "$(L "iptables: đã mở cổng $PORT/tcp" "iptables: opened port $PORT/tcp")"
         if command -v netfilter-persistent >/dev/null; then
-            netfilter-persistent save >/dev/null 2>&1 || warn "không lưu được luật iptables"
+            netfilter-persistent save >/dev/null 2>&1 || warn "$(L "không lưu được luật iptables" "could not save the iptables rules")"
         else
-            warn "luật iptables sẽ mất khi khởi động lại VPS: cài iptables-persistent để giữ"
+            warn "$(L "luật iptables sẽ mất khi khởi động lại VPS: cài iptables-persistent để giữ" "the iptables rules will be lost when the VPS reboots: install iptables-persistent to keep them")"
         fi
     fi
 }
@@ -477,7 +491,7 @@ start_service() {
     sleep 2
     if ! systemctl is-active --quiet "$SERVICE"; then
         journalctl -u "$SERVICE" -n 30 --no-pager >&2 || true
-        die "server không khởi động được (xem log ở trên)"
+        die "$(L "server không khởi động được (xem log ở trên)" "the server failed to start (see the log above)")"
     fi
 }
 
@@ -487,7 +501,7 @@ check_sni() {
     local t
     t=$(curl -s -o /dev/null --max-time 8 --tlsv1.3 -w '%{time_appconnect}' "https://$SNI" 2>/dev/null || true)
     awk -v t="$t" 'BEGIN { exit !(t + 0 > 0) }' ||
-        warn "VPS không truy cập được https://$SNI bằng TLS 1.3; Reality cần trang đó hoạt động: chọn --sni khác nếu kết nối lỗi"
+        warn "$(L "VPS không truy cập được https://$SNI bằng TLS 1.3; Reality cần trang đó hoạt động: chọn --sni khác nếu kết nối lỗi" "the VPS cannot reach https://$SNI over TLS 1.3; Reality needs that site to work: choose another --sni if connections fail")"
 }
 
 # ---------------------------------------------------------------- commands
@@ -497,8 +511,8 @@ cmd_install() {
     local port= sni= host= name=$DEFAULT_USER
     while (($#)); do
         case $1 in
-        --port | --sni | --host | --name) (($# >= 2)) || die "$1 cần một giá trị" ;;
-        *) die "tuỳ chọn không hợp lệ: $1 (xem bcserver help)" ;;
+        --port | --sni | --host | --name) (($# >= 2)) || die "$(L "$1 cần một giá trị" "$1 needs a value")" ;;
+        *) die "$(L "tuỳ chọn không hợp lệ: $1 (xem bcserver help)" "invalid option: $1 (see bcserver help)")" ;;
         esac
         case $1 in
         --port) port=$2 ;;
@@ -508,11 +522,11 @@ cmd_install() {
         esac
         shift 2
     done
-    [ -z "$port" ] || valid_port "$port" || die "--port phải là số 1-65535"
-    [ -z "$sni" ] || valid_domain "$sni" || die "--sni phải là tên miền, ví dụ www.microsoft.com"
-    [ -z "$host" ] || valid_host "$host" || die "--host phải là IP hoặc tên miền"
-    valid_name "$name" || die "--name chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)"
-    command -v systemctl >/dev/null || die "cần Linux có systemd"
+    [ -z "$port" ] || valid_port "$port" || die "$(L "--port phải là số 1-65535" "--port must be a number from 1 to 65535")"
+    [ -z "$sni" ] || valid_domain "$sni" || die "$(L "--sni phải là tên miền, ví dụ www.microsoft.com" "--sni must be a domain name, e.g. www.microsoft.com")"
+    [ -z "$host" ] || valid_host "$host" || die "$(L "--host phải là IP hoặc tên miền" "--host must be an IP address or a domain name")"
+    valid_name "$name" || die "$(L "--name chỉ gồm chữ, số, '.', '_', '-' (tối đa 32 ký tự)" "--name may only contain letters, digits, '.', '_', '-' (at most 32 characters)")"
+    command -v systemctl >/dev/null || die "$(L "cần Linux có systemd" "Linux with systemd is required")"
 
     ensure_deps
     ensure_iptables
@@ -529,7 +543,7 @@ cmd_install() {
 
     if [ -f "$STATE" ]; then
         read_state
-        info "Đã có cấu hình, giữ nguyên khoá và người dùng"
+        info "$(L "Đã có cấu hình, giữ nguyên khoá và người dùng" "Existing configuration found, keeping the keys and users")"
     else
         gen_keys
         PORT=$DEFAULT_PORT SNI=$DEFAULT_SNI
@@ -551,9 +565,13 @@ cmd_install() {
     start_service
 
     echo
-    info "Server đang chạy ở $HOST:$PORT (SNI $SNI)"
-    echo "Nếu nhà cung cấp VPS có tường lửa riêng trên trang quản lý (security group…), mở cổng $PORT/tcp ở đó."
-    echo "Thêm link dưới đây vào Black Cyclone: chế độ Server riêng → dán link."
+    info "$(L "Server đang chạy ở $HOST:$PORT (SNI $SNI)" "The server is running at $HOST:$PORT (SNI $SNI)")"
+    L "Nếu nhà cung cấp VPS có tường lửa riêng trên trang quản lý (security group…), mở cổng $PORT/tcp ở đó." \
+        "If the VPS provider has its own firewall in its control panel (security group…), open port $PORT/tcp there."
+    echo
+    L "Thêm link dưới đây vào Black Cyclone: chế độ Server riêng → dán link." \
+        "Add the link below to Black Cyclone: Own server mode → paste the link."
+    echo
     echo
     print_links
 }
@@ -561,22 +579,22 @@ cmd_install() {
 cmd_add() {
     need_root
     local name=${1:-}
-    valid_name "$name" || die "dùng: bcserver add <tên> (chữ, số, '.', '_', '-')"
+    valid_name "$name" || die "$(L "dùng: bcserver add <tên> (chữ, số, '.', '_', '-')" "usage: bcserver add <name> (letters, digits, '.', '_', '-')")"
     read_state
-    [ -z "$(user_uuid "$name")" ] || die "đã có người dùng $name"
+    [ -z "$(user_uuid "$name")" ] || die "$(L "đã có người dùng $name" "user $name already exists")"
     add_user "$name"
     apply_config
-    info "Đã thêm $name"
+    info "$(L "Đã thêm $name" "Added $name")"
     print_links "$name"
 }
 
 cmd_remove() {
     need_root
     local name=${1:-}
-    [ -n "$name" ] || die "dùng: bcserver remove <tên>"
+    [ -n "$name" ] || die "$(L "dùng: bcserver remove <tên>" "usage: bcserver remove <name>")"
     read_state
-    [ -n "$(user_uuid "$name")" ] || die "không có người dùng $name"
-    (($(user_count) > 1)) || die "không xoá được người dùng cuối cùng"
+    [ -n "$(user_uuid "$name")" ] || die "$(L "không có người dùng $name" "no user named $name")"
+    (($(user_count) > 1)) || die "$(L "không xoá được người dùng cuối cùng" "cannot remove the last user")"
     awk -v n="$name" '$1 != n' "$USERS" >"$USERS.tmp"
     chmod 0600 "$USERS.tmp"
     mv "$USERS.tmp" "$USERS"
@@ -584,7 +602,7 @@ cmd_remove() {
     if [ -f "$STATS" ]; then
         awk -v n="$name" '$1 != n' "$STATS" >"$STATS.tmp" && mv "$STATS.tmp" "$STATS"
     fi
-    info "Đã xoá $name: link của người này không dùng được nữa"
+    info "$(L "Đã xoá $name: link của người này không dùng được nữa" "Removed $name: their link no longer works")"
 }
 
 cmd_list() {
@@ -599,8 +617,8 @@ cmd_link() {
 
 cmd_status() {
     read_state
-    echo "Địa chỉ: $HOST:$PORT   SNI: $SNI   sing-box: $("$SB" version 2>/dev/null | head -n1 | awk '{print $3}')"
-    echo "Người dùng: $(user_count)"
+    echo "$(L "Địa chỉ" "Address"): $HOST:$PORT   SNI: $SNI   sing-box: $("$SB" version 2>/dev/null | head -n1 | awk '{print $3}')"
+    echo "$(L "Người dùng" "Users"): $(user_count)"
     systemctl status "$SERVICE" --no-pager --lines 0 || true
 }
 
@@ -609,11 +627,11 @@ cmd_status() {
 cmd_traffic() {
     need_root
     read_state
-    stats_supported || die "không có iptables: chưa thống kê được lưu lượng"
+    stats_supported || die "$(L "không có iptables: chưa thống kê được lưu lượng" "iptables is not available: no traffic statistics yet")"
     if [ "${1:-}" = "--reset" ]; then
         stats_zero
         rm -f "$STATS"
-        info "Đã đặt lại thống kê lưu lượng"
+        info "$(L "Đã đặt lại thống kê lưu lượng" "Traffic statistics reset")"
         return
     fi
     local name uuid
@@ -630,9 +648,9 @@ cmd_traffic() {
 cmd_online() {
     need_root
     read_state
-    [ -n "$API_SECRET" ] || die "server cài bằng bản cũ: chạy lại bcserver install để bật"
+    [ -n "$API_SECRET" ] || die "$(L "server cài bằng bản cũ: chạy lại bcserver install để bật" "the server was installed by an older version: run bcserver install again to enable this")"
     curl -fsS --max-time 5 -H "Authorization: Bearer $API_SECRET" "http://127.0.0.1:$API_PORT/connections" ||
-        die "không đọc được trạng thái kết nối (server có đang chạy?)"
+        die "$(L "không đọc được trạng thái kết nối (server có đang chạy?)" "could not read the connection status (is the server running?)")"
 }
 
 cmd_logs() { journalctl -u "$SERVICE" -n 100 --no-pager "$@"; }
@@ -640,16 +658,16 @@ cmd_logs() { journalctl -u "$SERVICE" -n 100 --no-pager "$@"; }
 cmd_restart() {
     need_root
     systemctl restart "$SERVICE"
-    systemctl is-active --quiet "$SERVICE" && info "Đã khởi động lại" || die "server không chạy (bcserver logs)"
+    systemctl is-active --quiet "$SERVICE" && info "$(L "Đã khởi động lại" "Restarted")" || die "$(L "server không chạy (bcserver logs)" "the server is not running (bcserver logs)")"
 }
 
 cmd_uninstall() {
     need_root
     if [ "${1:-}" != "--yes" ]; then
-        [ -t 0 ] || die "chạy bcserver uninstall --yes để xác nhận"
+        [ -t 0 ] || die "$(L "chạy bcserver uninstall --yes để xác nhận" "run bcserver uninstall --yes to confirm")"
         local ans
-        read -r -p "Gỡ server và xoá toàn bộ khoá, người dùng? Link cũ sẽ không dùng được nữa. [y/N] " ans
-        [[ $ans == [yY]* ]] || die "đã huỷ"
+        read -r -p "$(L "Gỡ server và xoá toàn bộ khoá, người dùng? Link cũ sẽ không dùng được nữa." "Uninstall the server and delete all keys and users? Existing links will stop working.") [y/N] " ans
+        [[ $ans == [yY]* ]] || die "$(L "đã huỷ" "cancelled")"
     fi
     systemctl disable --now --quiet "$SERVICE" 2>/dev/null || true
     stats_remove
@@ -658,10 +676,31 @@ cmd_uninstall() {
     rm -rf "$OPT" "$ETC" "/var/lib/$SERVICE"
     userdel "$SVC_USER" 2>/dev/null || true
     rm -f "$SELF"
-    info "Đã gỡ. Cổng đã mở trên tường lửa (nếu có) vẫn giữ nguyên."
+    info "$(L "Đã gỡ. Cổng đã mở trên tường lửa (nếu có) vẫn giữ nguyên." "Uninstalled. Ports opened on the firewall (if any) are left as they are.")"
 }
 
 usage() {
+    if [ "$BC_LANG" != vi ]; then
+        cat <<'EOF'
+bcserver: your own server for Black Cyclone (sing-box, VLESS + Reality)
+
+  install [--port N] [--sni DOMAIN] [--host IP|DOMAIN] [--name NAME]
+                     install or update (safe to run again: keys and users are kept)
+  add <name>         add a user and print their link
+  remove <name>      remove a user (their link stops working)
+  list               list the users
+  link [name]        print the links (all, or one user's)
+  status             server status
+  traffic [--reset]  traffic of each user (bytes up / down)
+  online             open connections (JSON)
+  logs [-f]          show the log (-f: follow)
+  restart            restart the server
+  uninstall [--yes]  remove everything
+
+Give each device / person their own name: to cut someone off, just remove that name.
+EOF
+        return
+    fi
     cat <<'EOF'
 bcserver: server riêng cho Black Cyclone (sing-box, VLESS + Reality)
 

@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"black-cyclone/internal/i18n"
 )
 
 type Mode string
@@ -66,6 +68,9 @@ type Routing struct {
 const AutoServer = "auto"
 
 type Settings struct {
+	// Language of the UI and messages: "vi", "en", or "" to follow the system.
+	Language string `json:"language"`
+
 	Mode      Mode   `json:"mode"`
 	DoHServer string `json:"doh_server"`
 	BypassLAN bool   `json:"bypass_lan"`
@@ -170,7 +175,7 @@ func Load() (Settings, error) {
 	}
 	if strings.HasPrefix(string(data), encMagic) {
 		if data, err = unprotect(data[len(encMagic):]); err != nil {
-			return s, errors.New("không giải mã được settings.json: " + err.Error())
+			return s, errors.New(i18n.T("không giải mã được settings.json: ", "cannot decrypt settings.json: ") + err.Error())
 		}
 	}
 	if err := json.Unmarshal(data, &s); err != nil {

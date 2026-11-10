@@ -44,7 +44,7 @@ func TestSmoke(t *testing.T) {
 	mu.Lock()
 	title := toggle.String()
 	mu.Unlock()
-	if !strings.Contains(title, labelDisconnect) {
+	if !strings.Contains(title, labelDisconnect()) {
 		t.Fatalf("toggle label = %s", title)
 	}
 	SetState(false, strings.Repeat("x", 300))

@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	mrand "math/rand/v2"
 	"net"
 	"sort"
@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/settings"
 )
 
@@ -72,15 +73,15 @@ type probeKeys struct {
 func keysFrom(w *settings.Warp) (probeKeys, error) {
 	var k probeKeys
 	if w == nil {
-		return k, fmt.Errorf("chưa có tài khoản WARP")
+		return k, errors.New(i18n.T("chưa có tài khoản WARP", "no WARP account yet"))
 	}
 	priv, err := base64.StdEncoding.DecodeString(w.PrivateKey)
 	if err != nil || len(priv) != 32 {
-		return k, fmt.Errorf("warp private key không hợp lệ")
+		return k, errors.New(i18n.T("warp private key không hợp lệ", "invalid WARP private key"))
 	}
 	peer, err := base64.StdEncoding.DecodeString(w.PeerPublicKey)
 	if err != nil || len(peer) != 32 {
-		return k, fmt.Errorf("warp peer public key không hợp lệ")
+		return k, errors.New(i18n.T("warp peer public key không hợp lệ", "invalid WARP peer public key"))
 	}
 	copy(k.priv[:], priv)
 	copy(k.peer[:], peer)

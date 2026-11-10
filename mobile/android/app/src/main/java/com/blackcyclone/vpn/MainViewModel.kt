@@ -81,31 +81,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun register() = op("Đang đăng ký WARP…") {
+    fun register() = op(tr("Đang đăng ký WARP…", "Registering WARP…")) {
         val json = withContext(Dispatchers.IO) { Rcvcore.register() }
-        save(Account.parse(json) ?: error("Phản hồi đăng ký không hợp lệ"))
+        save(Account.parse(json) ?: error(tr("Phản hồi đăng ký không hợp lệ", "Invalid registration response")))
         _scan.value = ScanState()
-        _toast.value = "Đã đăng ký WARP"
+        _toast.value = tr("Đã đăng ký WARP", "WARP registered")
         restartIfActive(Mode.WARP)
     }
 
-    fun applyLicense(key: String) = op("Đang áp dụng key WARP+…") {
-        val acc = _account.value ?: error("Chưa đăng ký WARP")
+    fun applyLicense(key: String) = op(tr("Đang áp dụng key WARP+…", "Applying WARP+ key…")) {
+        val acc = _account.value ?: error(tr("Chưa đăng ký WARP", "WARP is not registered yet"))
         val json = withContext(Dispatchers.IO) { Rcvcore.applyLicense(acc.json, key.trim()) }
-        val updated = Account.parse(json) ?: error("Phản hồi không hợp lệ")
+        val updated = Account.parse(json) ?: error(tr("Phản hồi không hợp lệ", "Invalid response"))
         save(updated)
-        _toast.value = "Đã áp dụng key: ${updated.typeLabel}"
+        _toast.value = tr("Đã áp dụng key: ${updated.typeLabel}", "Key applied: ${updated.typeLabel}")
         restartIfActive(Mode.WARP)
     }
 
     /** Imports account JSON (e.g. exported from this app or the desktop app). */
     fun import(json: String): Boolean {
         val a = Account.parse(json) ?: run {
-            _toast.value = "JSON tài khoản WARP không hợp lệ"
+            _toast.value = tr("JSON tài khoản WARP không hợp lệ", "Invalid WARP account JSON")
             return false
         }
         save(a)
-        _toast.value = "Đã nhập tài khoản"
+        _toast.value = tr("Đã nhập tài khoản", "Account imported")
         restartIfActive(Mode.WARP)
         return true
     }
@@ -134,7 +134,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun addServers(text: String): Boolean {
         val found = JSONArray(Rcvcore.parseLinks(text))
         if (found.length() == 0) {
-            _toast.value = "Không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)"
+            _toast.value = tr("Không tìm thấy link hợp lệ (vless, vmess, trojan, ss, hysteria2, tuic)", "No valid link found (vless, vmess, trojan, ss, hysteria2, tuic)")
             return false
         }
         val list = _servers.value.toMutableList()
@@ -145,7 +145,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val err = o.optString("error")
             if (err.isNotEmpty()) {
                 firstError = firstError ?: "${o.optString("name")}: $err"
-                Rcvcore.log("Bỏ qua link ${o.optString("name")}: $err")
+                Rcvcore.log(tr("Bỏ qua link ${o.optString("name")}: $err", "Skipped link ${o.optString("name")}: $err"))
                 continue
             }
             val link = o.getString("link")
@@ -154,13 +154,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             added++
         }
         if (added == 0) {
-            _toast.value = firstError?.let { "Link không hợp lệ: $it" } ?: "Các server này đã có trong danh sách"
+            _toast.value = firstError?.let { tr("Link không hợp lệ: $it", "Invalid link: $it") } ?: tr("Các server này đã có trong danh sách", "These servers are already in the list")
             return firstError == null
         }
         val wasEmpty = _servers.value.isEmpty()
         saveServers(list)
         if (wasEmpty && list.size == 1) selectServer(list[0].id)
-        _toast.value = "Đã thêm $added server" + (firstError?.let { ", bỏ qua link lỗi" } ?: "")
+        _toast.value = tr("Đã thêm $added server", "Added $added server(s)") + (firstError?.let { tr(", bỏ qua link lỗi", ", skipped invalid links") } ?: "")
         restartIfActive(Mode.CUSTOM)
         return true
     }
@@ -215,15 +215,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _scan.value = ScanState(scanned = o.optInt("scanned"), hits = hits, done = true)
                 when {
-                    hits.isEmpty() -> _toast.value = "Không endpoint nào phản hồi. Mạng có thể chặn WireGuard/UDP."
+                    hits.isEmpty() -> _toast.value = tr("Không endpoint nào phản hồi. Mạng có thể chặn WireGuard/UDP.", "No endpoint responded. Your network may be blocking WireGuard/UDP.")
                     Prefs.autoPickFastest -> {
                         setEndpoint(hits[0].ip, hits[0].port)
-                        _toast.value = "Đã chọn endpoint nhanh nhất ${hits[0].text} (${hits[0].rttMs} ms)"
+                        _toast.value = tr("Đã chọn endpoint nhanh nhất ${hits[0].text} (${hits[0].rttMs} ms)", "Picked the fastest endpoint ${hits[0].text} (${hits[0].rttMs} ms)")
                     }
                 }
             } catch (e: Exception) {
                 _scan.value = ScanState(done = true)
-                _toast.value = "Quét lỗi: ${e.message}"
+                _toast.value = tr("Quét lỗi: ${e.message}", "Scan failed: ${e.message}")
             } finally {
                 ticker.cancel()
             }

@@ -55,6 +55,11 @@ object Prefs {
         get() = sp.getString("selected_server", ServerEntry.AUTO)!!
         set(v) = sp.edit { putString("selected_server", v) }
 
+    /** UI language: Lang.AUTO (follow the system), "vi" or "en". */
+    var language: String
+        get() = sp.getString("language", null) ?: Lang.AUTO
+        set(v) = sp.edit { putString("language", v) }
+
     /** Vietnamese IPs and .vn domains skip the tunnel. */
     var directVn: Boolean
         get() = sp.getBoolean("direct_vn", true)
@@ -62,8 +67,8 @@ object Prefs {
 
     /** Why the current mode cannot connect yet, or null when it can. */
     fun connectProblem(): String? = when (mode) {
-        Mode.WARP -> if (account == null) "Hãy đăng ký WARP trước" else null
-        Mode.CUSTOM -> if (servers.isEmpty()) "Hãy thêm server trước (dán link vless://…)" else null
+        Mode.WARP -> if (account == null) tr("Hãy đăng ký WARP trước", "Register WARP first") else null
+        Mode.CUSTOM -> if (servers.isEmpty()) tr("Hãy thêm server trước (dán link vless://…)", "Add a server first (paste a vless://… link)") else null
     }
 
     /** Settings for the Go core, in the JSON layout of the desktop app's settings.Settings. */

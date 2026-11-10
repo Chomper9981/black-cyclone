@@ -12,6 +12,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/settings"
 	"black-cyclone/internal/vps"
 	"black-cyclone/server"
@@ -98,10 +99,10 @@ func hostFromInput(in VPSInput) (vps.Host, error) {
 		h.User = "root"
 	}
 	if h.Addr == "" || strings.ContainsAny(h.Addr, " /@") {
-		return h, errors.New("nhập IP hoặc tên miền của VPS")
+		return h, errors.New(i18n.T("nhập IP hoặc tên miền của VPS", "enter the VPS's IP or domain"))
 	}
 	if h.Port < 1 || h.Port > 65535 {
-		return h, errors.New("cổng SSH phải từ 1 đến 65535")
+		return h, errors.New(i18n.T("cổng SSH phải từ 1 đến 65535", "the SSH port must be between 1 and 65535"))
 	}
 	if h.Name == "" {
 		h.Name = h.Addr
@@ -113,10 +114,10 @@ func hostFromInput(in VPSInput) (vps.Host, error) {
 func (a *App) verifyLogin(h *vps.Host) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	a.log("Đang kiểm tra đăng nhập SSH vào " + h.Addr + "…")
+	a.log(i18n.T("Đang kiểm tra đăng nhập SSH vào ", "Checking the SSH login to ") + h.Addr + "…")
 	c, err := vps.Dial(ctx, h)
 	if err != nil {
-		a.log("SSH thất bại: " + err.Error())
+		a.log(i18n.T("SSH thất bại: ", "SSH failed: ") + err.Error())
 		return err
 	}
 	defer c.Close()
@@ -152,7 +153,7 @@ func loadHost(id string) (vps.Host, error) {
 			return h, nil
 		}
 	}
-	return vps.Host{}, errors.New("không tìm thấy VPS")
+	return vps.Host{}, errors.New(i18n.T("không tìm thấy VPS", "VPS not found"))
 }
 
 // AddVPS checks the login (and root rights) before saving, and pins the SSH host key.
@@ -168,7 +169,7 @@ func (a *App) AddVPS(in VPSInput) (VPSView, error) {
 	if err := saveHost(h); err != nil {
 		return VPSView{}, err
 	}
-	a.log(fmt.Sprintf("Đã thêm VPS %s (khoá SSH %s).", h.Name, vps.Fingerprint(h.HostKey)))
+	a.log(fmt.Sprintf(i18n.T("Đã thêm VPS %s (khoá SSH %s).", "Added VPS %s (SSH key %s)."), h.Name, vps.Fingerprint(h.HostKey)))
 	return viewOf(h), nil
 }
 
@@ -201,7 +202,7 @@ func (a *App) UpdateVPS(id string, in VPSInput) (VPSView, error) {
 	if err := saveHost(h); err != nil {
 		return VPSView{}, err
 	}
-	a.log("Đã lưu thay đổi VPS " + h.Name + ".")
+	a.log(i18n.T("Đã lưu thay đổi VPS ", "Saved changes to VPS ") + h.Name + ".")
 	return viewOf(h), nil
 }
 
@@ -220,7 +221,7 @@ func (a *App) TrustNewVPSKey(id string) (VPSView, error) {
 	if err := saveHost(h); err != nil {
 		return VPSView{}, err
 	}
-	a.log(fmt.Sprintf("VPS %s: đã chấp nhận khoá SSH mới %s (khoá cũ %s).", h.Name, vps.Fingerprint(h.HostKey), old))
+	a.log(fmt.Sprintf(i18n.T("VPS %s: đã chấp nhận khoá SSH mới %s (khoá cũ %s).", "VPS %s: accepted the new SSH key %s (old key %s)."), h.Name, vps.Fingerprint(h.HostKey), old))
 	return viewOf(h), nil
 }
 
@@ -243,7 +244,7 @@ func (a *App) RemoveVPS(id string) error {
 
 // PickKeyFile opens a file dialog for an SSH private key.
 func (a *App) PickKeyFile() (string, error) {
-	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Chọn file khoá SSH (private key)"})
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: i18n.T("Chọn file khoá SSH (private key)", "Choose the SSH private key file")})
 }
 
 // withVPS connects to host id and runs fn, one operation per VPS at a time.
@@ -254,7 +255,7 @@ func (a *App) withVPS(id string, timeout time.Duration, fn func(ctx context.Cont
 	}
 	h := &host
 	if h.HostKey == "" {
-		return errors.New("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại")
+		return errors.New(i18n.T("VPS chưa có khoá SSH đã xác minh: xoá rồi thêm lại", "this VPS has no verified SSH key: remove it and add it again"))
 	}
 	// Wait for the operation in progress (e.g. the UI's periodic refresh).
 	l := hostLock(id)
@@ -283,12 +284,12 @@ func (a *App) VPSOverview(id string) (o vps.Overview, err error) {
 func (a *App) VPSInstall(id string, opts vps.InstallOptions) (o vps.Overview, err error) {
 	emit := func(line string) { runtime.EventsEmit(a.ctx, "vps-out", map[string]string{"id": id, "line": line}) }
 	err = a.withVPS(id, 10*time.Minute, func(ctx context.Context, c *vps.Client) error {
-		a.log("Đang cài / cập nhật server trên VPS…")
+		a.log(i18n.T("Đang cài / cập nhật server trên VPS…", "Installing / updating the server on the VPS…"))
 		if err := c.Install(ctx, bcserverScript, opts, emit); err != nil {
-			a.log("Cài server thất bại: " + err.Error())
+			a.log(i18n.T("Cài server thất bại: ", "Server install failed: ") + err.Error())
 			return err
 		}
-		a.log("Cài server xong.")
+		a.log(i18n.T("Cài server xong.", "Server installed."))
 		o, err = c.Overview(ctx, bcserverSum)
 		return err
 	})
@@ -301,7 +302,7 @@ func (a *App) VPSAddUser(id, name string) (o vps.Overview, err error) {
 		if _, err := c.AddUser(ctx, name); err != nil {
 			return err
 		}
-		a.log("Đã thêm người dùng " + name + " trên VPS.")
+		a.log(i18n.T("Đã thêm người dùng ", "Added user ") + name + i18n.T(" trên VPS.", " on the VPS."))
 		o, err = c.Overview(ctx, bcserverSum)
 		return err
 	})
@@ -313,7 +314,7 @@ func (a *App) VPSRemoveUser(id, name string) (o vps.Overview, err error) {
 		if err := c.RemoveUser(ctx, name); err != nil {
 			return err
 		}
-		a.log("Đã xoá người dùng " + name + " trên VPS.")
+		a.log(i18n.T("Đã xoá người dùng ", "Removed user ") + name + i18n.T(" trên VPS.", " on the VPS."))
 		o, err = c.Overview(ctx, bcserverSum)
 		return err
 	})
@@ -345,7 +346,7 @@ func (a *App) VPSUninstall(id string) (o vps.Overview, err error) {
 		if err := c.Uninstall(ctx); err != nil {
 			return err
 		}
-		a.log("Đã gỡ server khỏi VPS.")
+		a.log(i18n.T("Đã gỡ server khỏi VPS.", "Server removed from the VPS."))
 		o, err = c.Overview(ctx, bcserverSum)
 		return err
 	})
@@ -356,7 +357,7 @@ func (a *App) VPSUninstall(id string) (o vps.Overview, err error) {
 // scan it instead of receiving the link through a chat app.
 func (a *App) VPSLinkQR(link string) (string, error) {
 	if !strings.HasPrefix(link, "vless://") || len(link) > 2048 {
-		return "", errors.New("link không hợp lệ")
+		return "", errors.New(i18n.T("link không hợp lệ", "invalid link"))
 	}
 	png, err := qrcode.Encode(link, qrcode.Medium, 512)
 	if err != nil {

@@ -98,7 +98,7 @@ class WarpVpnService : VpnService() {
                     monitor()
                     return@launch
                 }
-                Rcvcore.log("Kết nối thất bại: $err")
+                Rcvcore.log(tr("Kết nối thất bại: $err", "Connection failed: $err"))
                 // A failed attempt may have replaced the blocking interface and then closed its
                 // own: block afresh.
                 if (Prefs.killSwitch) {
@@ -113,9 +113,9 @@ class WarpVpnService : VpnService() {
                 }
                 val wait = delays[attempt.coerceAtMost(delays.lastIndex)]
                 attempt++
-                val note = if (blocking) " Kill switch đang chặn mạng để không lộ IP thật." else ""
+                val note = if (blocking) tr(" Kill switch đang chặn mạng để không lộ IP thật.", " The kill switch is blocking the network so your real IP doesn't leak.") else ""
                 TunnelState.update {
-                    it.copy(status = Status.CONNECTING, blocking = blocking, message = "Lỗi: $err. Thử lại sau ${wait / 1000}s…$note")
+                    it.copy(status = Status.CONNECTING, blocking = blocking, message = tr("Lỗi: $err. Thử lại sau ${wait / 1000}s…$note", "Error: $err. Retrying in ${wait / 1000}s…$note"))
                 }
                 notify(buildNotification(TunnelState.state.value))
                 delay(wait)
@@ -129,7 +129,7 @@ class WarpVpnService : VpnService() {
         registerNetworkCallback()
         reportDefaultNetwork()
         val dataDir = prepareDataDir()
-        val pfd = newBuilder().establish() ?: throw IllegalStateException("Không tạo được VPN (chưa cấp quyền VPN?)")
+        val pfd = newBuilder().establish() ?: throw IllegalStateException(tr("Không tạo được VPN (chưa cấp quyền VPN?)", "Could not create the VPN (VPN permission not granted?)"))
         // The Go core owns the fd from here on, also on error.
         Rcvcore.start(pfd.detachFd().toLong(), Prefs.coreSettingsJson(), dataDir)
         // The tunnel's interface has replaced the blocking one, so dropping it opens no gap.
@@ -181,11 +181,11 @@ class WarpVpnService : VpnService() {
         val pfd = try {
             newBuilder().establish()
         } catch (e: Exception) {
-            Rcvcore.log("Kill switch: không tạo được giao diện chặn: ${e.message}")
+            Rcvcore.log(tr("Kill switch: không tạo được giao diện chặn: ${e.message}", "Kill switch: could not create the blocking interface: ${e.message}"))
             null
         } ?: return
         blockPfd = pfd
-        Rcvcore.log("Kill switch: đang chặn mọi kết nối trong lúc đường hầm chưa sẵn sàng")
+        Rcvcore.log(tr("Kill switch: đang chặn mọi kết nối trong lúc đường hầm chưa sẵn sàng", "Kill switch: blocking all connections until the tunnel is ready"))
     }
 
     private fun releaseBlock() {
@@ -260,11 +260,11 @@ class WarpVpnService : VpnService() {
                 TunnelState.update { st ->
                     val elapsed = SystemClock.elapsedRealtime() - st.startedAt
                     val status = if (okAgo >= 0) Status.CONNECTED else Status.CONNECTING
-                    val hint = if (mode == Mode.WARP) "endpoint có thể bị chặn, hãy quét endpoint" else "kiểm tra link, tường lửa của VPS, hoặc thử server khác"
+                    val hint = if (mode == Mode.WARP) tr("endpoint có thể bị chặn, hãy quét endpoint", "the endpoint may be blocked, try scanning endpoints") else tr("kiểm tra link, tường lửa của VPS, hoặc thử server khác", "check the link and the VPS firewall, or try another server")
                     val warn = if (okAgo < 0 && elapsed > NO_TRAFFIC_WARN_MS) {
-                        "Chưa thông được sau ${elapsed / 1000}s: $hint."
+                        tr("Chưa thông được sau ${elapsed / 1000}s: $hint.", "No traffic after ${elapsed / 1000}s: $hint.")
                     } else if (okAgo > STALE_MS) {
-                        "Mất kết nối ${okAgo / 1000}s: $hint."
+                        tr("Mất kết nối ${okAgo / 1000}s: $hint.", "Connection lost for ${okAgo / 1000}s: $hint.")
                     } else null
                     st.copy(
                         status = status, message = warn, delayMs = s.optLong("delay_ms"), okAgoMs = okAgo,
@@ -288,7 +288,7 @@ class WarpVpnService : VpnService() {
             TunnelState.set(
                 TunnelInfo(
                     status = Status.ERROR, mode = mode, blocking = true, lockdown = lockdownNow(),
-                    message = "$err. Kill switch đang chặn mọi kết nối để không lộ IP thật: bấm Ngắt để mở lại mạng.",
+                    message = tr("$err. Kill switch đang chặn mọi kết nối để không lộ IP thật: bấm Ngắt để mở lại mạng.", "$err. The kill switch is blocking all connections so your real IP doesn't leak: disconnect to restore the network."),
                 ),
             )
             notify(buildNotification(TunnelState.state.value))
@@ -454,7 +454,7 @@ class WarpVpnService : VpnService() {
 
     override fun onRevoke() {
         // Another VPN took over or the user revoked permission.
-        Rcvcore.log("Quyền VPN bị thu hồi")
+        Rcvcore.log(tr("Quyền VPN bị thu hồi", "VPN permission revoked"))
         disconnect()
     }
 
@@ -480,9 +480,9 @@ class WarpVpnService : VpnService() {
 
     private fun buildNotification(st: TunnelInfo): Notification {
         val title = when {
-            st.status == Status.CONNECTED -> "${mode.label} đã kết nối"
-            st.blocking -> "Kill switch: đang chặn mạng"
-            else -> "Đang kết nối ${mode.label}…"
+            st.status == Status.CONNECTED -> tr("${mode.label} đã kết nối", "${mode.label} connected")
+            st.blocking -> tr("Kill switch: đang chặn mạng", "Kill switch: blocking the network")
+            else -> tr("Đang kết nối ${mode.label}…", "Connecting ${mode.label}…")
         }
         val text = if (st.status == Status.CONNECTED) {
             "↓ ${formatRate(st.rxRate)}  ↑ ${formatRate(st.txRate)}  ·  ${st.endpoint ?: ""}"
@@ -500,7 +500,7 @@ class WarpVpnService : VpnService() {
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(mainActivityIntent(this))
-            .addAction(0, "Ngắt", stop)
+            .addAction(0, tr("Ngắt", "Disconnect"), stop)
             .build()
     }
 

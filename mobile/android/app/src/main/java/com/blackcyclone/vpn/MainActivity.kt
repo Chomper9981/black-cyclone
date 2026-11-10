@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
 
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode == RESULT_OK) WarpVpnService.start(this)
-        else vm.toast("Cần cấp quyền VPN để kết nối")
+        else vm.toast(tr("Cần cấp quyền VPN để kết nối", "VPN permission is required to connect"))
     }
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}

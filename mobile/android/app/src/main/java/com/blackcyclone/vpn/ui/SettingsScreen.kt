@@ -26,8 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.blackcyclone.vpn.BuildConfig
+import com.blackcyclone.vpn.Lang
 import com.blackcyclone.vpn.Prefs
 import com.blackcyclone.vpn.SplitMode
+import com.blackcyclone.vpn.tr
 
 @Composable
 fun SettingsScreen() {
@@ -62,28 +64,44 @@ fun SettingsScreen() {
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Hint("Thay đổi có hiệu lực từ lần kết nối sau.")
-        SectionCard("Kết nối") {
-            SwitchRow("Bỏ qua mạng LAN", "Mạng nội bộ (192.168.x.x, 10.x.x.x…) đi thẳng, không qua VPN: vẫn dùng được máy in, NAS, Chromecast.", bypassLan) {
+        Hint(tr("Thay đổi có hiệu lực từ lần kết nối sau.", "Changes take effect the next time you connect."))
+        SectionCard(tr("Ngôn ngữ", "Language")) {
+            listOf(
+                Lang.AUTO to tr("Tự động (theo hệ thống)", "Auto (system)"),
+                Lang.EN to "English",
+                Lang.VI to "Tiếng Việt",
+            ).forEach { (lang, label) ->
+                Row(
+                    Modifier.fillMaxWidth().selectable(Lang.setting == lang) { Lang.set(lang) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = Lang.setting == lang, onClick = null)
+                    Text(label, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 10.dp))
+                }
+            }
+        }
+
+        SectionCard(tr("Kết nối", "Connection")) {
+            SwitchRow(tr("Bỏ qua mạng LAN", "Bypass LAN"), tr("Mạng nội bộ (192.168.x.x, 10.x.x.x…) đi thẳng, không qua VPN: vẫn dùng được máy in, NAS, Chromecast.", "Local networks (192.168.x.x, 10.x.x.x…) go direct, not through the VPN: printers, NAS and Chromecast keep working."), bypassLan) {
                 bypassLan = it; Prefs.bypassLan = it
             }
-            SwitchRow("Việt Nam đi thẳng", "Trang .vn và IP Việt Nam không qua VPN: ngân hàng, báo, game trong nước nhanh hơn và không bị chặn vì IP nước ngoài.", directVn) {
+            SwitchRow(tr("Việt Nam đi thẳng", "Vietnamese sites go direct"), tr("Trang .vn và IP Việt Nam không qua VPN: ngân hàng, báo, game trong nước nhanh hơn và không bị chặn vì IP nước ngoài.", ".vn sites and Vietnamese IPs skip the VPN: local banks, news and games are faster and aren't blocked for using a foreign IP."), directVn) {
                 directVn = it; Prefs.directVn = it
             }
-            SwitchRow("Tự kết nối khi mở app", "Mở app là tự kết nối.", autoConnect) {
+            SwitchRow(tr("Tự kết nối khi mở app", "Connect when the app opens"), tr("Mở app là tự kết nối.", "Connects automatically as soon as you open the app."), autoConnect) {
                 autoConnect = it; Prefs.autoConnect = it
             }
-            SwitchRow("Tự chọn endpoint nhanh nhất", "WARP: sau khi quét, tự dùng endpoint có ping thấp nhất.", autoPick) {
+            SwitchRow(tr("Tự chọn endpoint nhanh nhất", "Pick the fastest endpoint automatically"), tr("WARP: sau khi quét, tự dùng endpoint có ping thấp nhất.", "WARP: after a scan, use the endpoint with the lowest ping."), autoPick) {
                 autoPick = it; Prefs.autoPickFastest = it
             }
         }
 
-        SectionCard("Chia tuyến theo ứng dụng") {
-            Hint("Chọn ứng dụng nào đi qua VPN. Ví dụ để app ngân hàng, game đi thẳng.", Modifier.padding(top = 4.dp, bottom = 4.dp))
+        SectionCard(tr("Chia tuyến theo ứng dụng", "Per-app split tunneling")) {
+            Hint(tr("Chọn ứng dụng nào đi qua VPN. Ví dụ để app ngân hàng, game đi thẳng.", "Choose which apps use the VPN. For example, let banking apps and games go direct."), Modifier.padding(top = 4.dp, bottom = 4.dp))
             listOf(
-                SplitMode.OFF to "Tắt: mọi ứng dụng qua VPN",
-                SplitMode.EXCLUDE to "Ứng dụng đã chọn đi thẳng",
-                SplitMode.INCLUDE to "Chỉ ứng dụng đã chọn qua VPN",
+                SplitMode.OFF to tr("Tắt: mọi ứng dụng qua VPN", "Off: all apps use the VPN"),
+                SplitMode.EXCLUDE to tr("Ứng dụng đã chọn đi thẳng", "Selected apps go direct"),
+                SplitMode.INCLUDE to tr("Chỉ ứng dụng đã chọn qua VPN", "Only selected apps use the VPN"),
             ).forEach { (mode, label) ->
                 Row(
                     Modifier.fillMaxWidth().selectable(splitMode == mode) { splitMode = mode; Prefs.splitMode = mode },
@@ -94,32 +112,32 @@ fun SettingsScreen() {
                 }
             }
             OutlinedButton(onClick = { pickingApps = true }, enabled = splitMode != SplitMode.OFF) {
-                Text("Chọn ứng dụng (${splitApps.size})")
+                Text(tr("Chọn ứng dụng (${splitApps.size})", "Choose apps (${splitApps.size})"))
             }
         }
 
         SectionCard("Kill switch") {
             SwitchRow(
-                "Chặn mạng khi VPN rớt",
-                "Trong lúc kết nối lại hoặc khi lỗi, chặn mọi kết nối thay vì để đi thẳng (lộ IP thật), đến khi nối lại được hoặc bạn bấm Ngắt.",
+                tr("Chặn mạng khi VPN rớt", "Block the network when the VPN drops"),
+                tr("Trong lúc kết nối lại hoặc khi lỗi, chặn mọi kết nối thay vì để đi thẳng (lộ IP thật), đến khi nối lại được hoặc bạn bấm Ngắt.", "While reconnecting or after an error, block all connections instead of letting them go direct (exposing your real IP), until the VPN is back or you disconnect."),
                 killSwitch,
             ) { killSwitch = it; Prefs.killSwitch = it }
             Hint(
-                "Kill switch của app không bảo vệ được khi app bị tắt hẳn hoặc lúc khởi động máy. Để kín hoàn toàn, vào Cài đặt VPN, chạm bánh răng cạnh BlackCyclone, bật \"VPN luôn bật\" và \"Chặn kết nối không qua VPN\".",
+                tr("Kill switch của app không bảo vệ được khi app bị tắt hẳn hoặc lúc khởi động máy. Để kín hoàn toàn, vào Cài đặt VPN, chạm bánh răng cạnh BlackCyclone, bật \"VPN luôn bật\" và \"Chặn kết nối không qua VPN\".", "The app's kill switch can't protect you when the app is killed or while the device boots. For full protection, open VPN settings, tap the gear next to BlackCyclone, and turn on \"Always-on VPN\" and \"Block connections without VPN\"."),
                 Modifier.padding(top = 4.dp, bottom = 8.dp),
             )
             OutlinedButton(onClick = {
                 ctx.startActivity(Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }) { Text("Mở cài đặt VPN") }
+            }) { Text(tr("Mở cài đặt VPN", "Open VPN settings")) }
         }
 
-        SectionCard("Ô cài đặt nhanh") {
-            Hint("Kéo thanh thông báo xuống, chạm bút chỉnh sửa và thêm ô \"BlackCyclone\" để bật/tắt nhanh.", Modifier.padding(top = 4.dp))
+        SectionCard(tr("Ô cài đặt nhanh", "Quick Settings tile")) {
+            Hint(tr("Kéo thanh thông báo xuống, chạm bút chỉnh sửa và thêm ô \"BlackCyclone\" để bật/tắt nhanh.", "Pull down the notification shade, tap the edit pencil and add the \"BlackCyclone\" tile to switch the VPN on and off quickly."), Modifier.padding(top = 4.dp))
         }
 
-        SectionCard("Giới thiệu") {
+        SectionCard(tr("Giới thiệu", "About")) {
             Hint("BlackCyclone ${BuildConfig.VERSION_NAME} · © 2026 Red Cyclone · GPL-3.0", Modifier.padding(top = 4.dp, bottom = 8.dp))
-            OutlinedButton(onClick = { showLicenses = true }) { Text("Giấy phép mã nguồn mở") }
+            OutlinedButton(onClick = { showLicenses = true }) { Text(tr("Giấy phép mã nguồn mở", "Open-source licenses")) }
         }
     }
 }

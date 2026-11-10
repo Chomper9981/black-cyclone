@@ -4,9 +4,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Connection mode, same values as settings.Mode of the desktop app. */
-enum class Mode(val id: String, val label: String) {
-    WARP("warp", "WARP"),
-    CUSTOM("custom", "Server riêng");
+enum class Mode(val id: String) {
+    WARP("warp"),
+    CUSTOM("custom");
+
+    /** Display name, in the current language. */
+    val label: String
+        get() = when (this) {
+            WARP -> "WARP"
+            CUSTOM -> tr("Server riêng", "Own server")
+        }
 
     companion object {
         fun of(id: String?): Mode = entries.firstOrNull { it.id == id } ?: WARP

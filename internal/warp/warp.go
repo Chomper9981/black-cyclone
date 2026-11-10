@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
+	"black-cyclone/internal/i18n"
 	"black-cyclone/internal/settings"
 )
 
@@ -134,30 +136,30 @@ type accountResponse struct {
 func ApplyLicense(w *settings.Warp, license string) error {
 	license = strings.TrimSpace(license)
 	if license == "" {
-		return fmt.Errorf("key WARP+ trống")
+		return errors.New(i18n.T("key WARP+ trống", "the WARP+ key is empty"))
 	}
 	if w == nil || w.DeviceID == "" || w.Token == "" {
-		return fmt.Errorf("tài khoản WARP cũ (thiếu device id/token), hãy đăng ký lại")
+		return errors.New(i18n.T("tài khoản WARP cũ (thiếu device id/token), hãy đăng ký lại", "old WARP account (no device id/token): register again"))
 	}
 	body, _ := json.Marshal(map[string]string{"license": license})
 	raw, status, err := authRequest(http.MethodPut, w, body)
 	if err != nil {
-		return fmt.Errorf("áp dụng key WARP+: %w", err)
+		return fmt.Errorf(i18n.T("áp dụng key WARP+: %w", "applying the WARP+ key: %w"), err)
 	}
 	if status != http.StatusOK {
-		return fmt.Errorf("key WARP+ không hợp lệ (HTTP %d): %s", status, strings.TrimSpace(string(raw)))
+		return fmt.Errorf(i18n.T("key WARP+ không hợp lệ (HTTP %d): %s", "invalid WARP+ key (HTTP %d): %s"), status, strings.TrimSpace(string(raw)))
 	}
 
 	raw, status, err = authRequest(http.MethodGet, w, nil)
 	if err != nil {
-		return fmt.Errorf("đọc thông tin tài khoản WARP: %w", err)
+		return fmt.Errorf(i18n.T("đọc thông tin tài khoản WARP: %w", "reading the WARP account: %w"), err)
 	}
 	if status != http.StatusOK {
-		return fmt.Errorf("đọc thông tin tài khoản WARP: HTTP %d: %s", status, strings.TrimSpace(string(raw)))
+		return fmt.Errorf(i18n.T("đọc thông tin tài khoản WARP: HTTP %d: %s", "reading the WARP account: HTTP %d: %s"), status, strings.TrimSpace(string(raw)))
 	}
 	var acc accountResponse
 	if err := json.Unmarshal(raw, &acc); err != nil {
-		return fmt.Errorf("đọc thông tin tài khoản WARP: decode: %w", err)
+		return fmt.Errorf(i18n.T("đọc thông tin tài khoản WARP: decode: %w", "reading the WARP account: decode: %w"), err)
 	}
 	w.License = license
 	if acc.AccountType != "" {

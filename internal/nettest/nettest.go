@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"black-cyclone/internal/i18n"
 )
 
 type IPInfo struct {
@@ -134,13 +136,13 @@ func shortErr(err error) string {
 	s := err.Error()
 	switch {
 	case strings.Contains(s, "timeout"), strings.Contains(s, "deadline"):
-		return "hết thời gian chờ"
+		return i18n.T("hết thời gian chờ", "timed out")
 	case strings.Contains(s, "connection reset"), strings.Contains(s, "forcibly closed"):
-		return "bị ngắt kết nối (có thể bị chặn)"
+		return i18n.T("bị ngắt kết nối (có thể bị chặn)", "connection reset (possibly blocked)")
 	case strings.Contains(s, "no such host"):
-		return "không phân giải được tên miền"
+		return i18n.T("không phân giải được tên miền", "could not resolve the domain")
 	case strings.Contains(s, "certificate"):
-		return "chứng chỉ TLS sai (có thể bị chặn)"
+		return i18n.T("chứng chỉ TLS sai (có thể bị chặn)", "wrong TLS certificate (possibly blocked)")
 	}
 	if len(s) > 80 {
 		s = s[:80] + "…"

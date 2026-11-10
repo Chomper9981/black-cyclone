@@ -55,6 +55,7 @@ export namespace main {
 	    since: string;
 	    admin: boolean;
 	    os: string;
+	    lang: string;
 	    bins_ok: boolean;
 	    missing: string[];
 	    error: string;
@@ -75,6 +76,7 @@ export namespace main {
 	        this.since = source["since"];
 	        this.admin = source["admin"];
 	        this.os = source["os"];
+	        this.lang = source["lang"];
 	        this.bins_ok = source["bins_ok"];
 	        this.missing = source["missing"];
 	        this.error = source["error"];
@@ -269,6 +271,7 @@ export namespace settings {
 	    }
 	}
 	export class Settings {
+	    language: string;
 	    mode: string;
 	    doh_server: string;
 	    bypass_lan: boolean;
@@ -293,6 +296,7 @@ export namespace settings {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.language = source["language"];
 	        this.mode = source["mode"];
 	        this.doh_server = source["doh_server"];
 	        this.bypass_lan = source["bypass_lan"];

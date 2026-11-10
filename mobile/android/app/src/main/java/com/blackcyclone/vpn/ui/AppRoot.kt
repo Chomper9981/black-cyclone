@@ -25,14 +25,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.blackcyclone.vpn.MainViewModel
 import com.blackcyclone.vpn.VpsViewModel
 import com.blackcyclone.vpn.R
+import com.blackcyclone.vpn.tr
 
 private data class Tab(val label: String, @param:DrawableRes val icon: Int)
 
-private val tabs = listOf(
-    Tab("Kết nối", R.drawable.ic_nav_power),
+// A function, not a val: the labels follow the language at runtime.
+private fun tabs() = listOf(
+    Tab(tr("Kết nối", "Connect"), R.drawable.ic_nav_power),
     Tab("VPS", R.drawable.ic_nav_server),
-    Tab("Cài đặt", R.drawable.ic_nav_settings),
-    Tab("Nhật ký", R.drawable.ic_nav_logs),
+    Tab(tr("Cài đặt", "Settings"), R.drawable.ic_nav_settings),
+    Tab(tr("Nhật ký", "Logs"), R.drawable.ic_nav_logs),
 )
 
 @Composable
@@ -53,7 +55,7 @@ fun AppRoot(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) 
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
-                tabs.forEachIndexed { i, t ->
+                tabs().forEachIndexed { i, t ->
                     NavigationBarItem(
                         selected = tab == i,
                         onClick = { tab = i },
@@ -69,7 +71,7 @@ fun AppRoot(vm: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) 
                 0 -> ConnectScreen(vm, onConnect, onDisconnect)
                 1 -> VpsScreen(vpsVm, vm)
                 2 -> SettingsScreen()
-                else -> LogsScreen(onCopied = { vm.toast("Đã sao chép nhật ký") })
+                else -> LogsScreen(onCopied = { vm.toast(tr("Đã sao chép nhật ký", "Logs copied")) })
             }
         }
     }

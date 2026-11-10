@@ -14,6 +14,8 @@ import (
 	"unicode/utf16"
 
 	"github.com/energye/systray"
+
+	"black-cyclone/internal/i18n"
 )
 
 // Callbacks are the actions triggered from the tray. Nil entries are ignored.
@@ -23,13 +25,13 @@ type Callbacks struct {
 	Quit   func() // "Thoát"
 }
 
-const (
-	labelShow       = "Mở Black Cyclone"
-	labelConnect    = "Kết nối"
-	labelDisconnect = "Ngắt kết nối"
-	labelQuit       = "Thoát"
-	defaultTooltip  = "Black Cyclone"
-)
+const defaultTooltip = "Black Cyclone"
+
+// Menu labels follow the app language (see Relabel).
+func labelShow() string       { return i18n.T("Mở Black Cyclone", "Open Black Cyclone") }
+func labelConnect() string    { return i18n.T("Kết nối", "Connect") }
+func labelDisconnect() string { return i18n.T("Ngắt kết nối", "Disconnect") }
+func labelQuit() string       { return i18n.T("Thoát", "Quit") }
 
 var (
 	mu        sync.Mutex
@@ -39,6 +41,8 @@ var (
 	connected bool
 	tooltip   = defaultTooltip
 	toggle    *systray.MenuItem
+	showItem  *systray.MenuItem
+	quitItem  *systray.MenuItem
 	icons     = [2][]byte{iconDisconnected, iconConnected}
 )
 
@@ -70,14 +74,16 @@ func Start(icon []byte, cb Callbacks) {
 		systray.SetOnDClick(func(systray.IMenu) { call(cb.Show)() })
 		// Right-click: default behaviour shows the menu.
 
-		systray.AddMenuItem(labelShow, "").Click(call(cb.Show))
-		t := systray.AddMenuItem(labelConnect, "")
+		show := systray.AddMenuItem(labelShow(), "")
+		show.Click(call(cb.Show))
+		t := systray.AddMenuItem(labelConnect(), "")
 		t.Click(call(cb.Toggle))
 		systray.AddSeparator()
-		systray.AddMenuItem(labelQuit, "").Click(call(cb.Quit))
+		quit := systray.AddMenuItem(labelQuit(), "")
+		quit.Click(call(cb.Quit))
 
 		mu.Lock()
-		toggle = t
+		toggle, showItem, quitItem = t, show, quit
 		ready = true
 		applyLocked()
 		mu.Unlock()
@@ -107,14 +113,30 @@ func SetState(isConnected bool, tip string) {
 	applyLocked()
 }
 
+// Relabel re-applies the menu labels after the app language changed.
+func Relabel() {
+	mu.Lock()
+	defer mu.Unlock()
+	if !ready {
+		return
+	}
+	if showItem != nil {
+		showItem.SetTitle(labelShow())
+	}
+	if quitItem != nil {
+		quitItem.SetTitle(labelQuit())
+	}
+	applyLocked()
+}
+
 func applyLocked() {
 	if !ready {
 		return
 	}
 	i := 0
-	label := labelConnect
+	label := labelConnect()
 	if connected {
-		i, label = 1, labelDisconnect
+		i, label = 1, labelDisconnect()
 	}
 	systray.SetIcon(icons[i])
 	systray.SetTooltip(truncateUTF16(tooltip, 127)) // NOTIFYICONDATA.szTip is 128 WCHARs
