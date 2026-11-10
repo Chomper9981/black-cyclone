@@ -465,12 +465,12 @@ function renderModes() {
     el.subPanel.hidden = mode !== 'custom';
 }
 
-function warpTypeLabel(t) {
-    switch (t) {
+function warpTypeLabel(type) { // not "t": that is the translation function
+    switch (type) {
     case 'unlimited': return ['WARP+', 'plus'];
     case 'limited': return [t('WARP+ (giới hạn)', 'WARP+ (limited)'), 'plus'];
     case 'free': case '': case undefined: return [t('Miễn phí', 'Free'), ''];
-    default: return [t, ''];
+    default: return [type, ''];
     }
 }
 
