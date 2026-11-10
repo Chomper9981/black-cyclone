@@ -21,14 +21,27 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# Language of the messages: BC_LANG=vi|en, else the Windows display language
+# (Vietnamese gets Vietnamese, everything else English). bcserver on the VPS gets the same.
+$bcLang = 'en'
+if ($env:BC_LANG -eq 'vi' -or $env:BC_LANG -eq 'en') { $bcLang = $env:BC_LANG.ToLowerInvariant() }
+elseif ((Get-UICulture).Name -like 'vi*') { $bcLang = 'vi' }
+
+# L "tiếng Việt" "English": the message in the chosen language.
+function L([string]$vi, [string]$en) {
+    if ($bcLang -eq 'vi') { return $vi }
+    return $en
+}
+
 foreach ($tool in 'ssh', 'scp') {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-        throw "Không tìm thấy $tool. Cài 'OpenSSH Client' trong Settings > System > Optional features."
+        throw (L "Không tìm thấy $tool. Cài 'OpenSSH Client' trong Settings > System > Optional features." `
+                "$tool not found. Install 'OpenSSH Client' in Settings > System > Optional features.")
     }
 }
 
 function Assert-Match([string]$value, [string]$pattern, [string]$what) {
-    if ($value -and $value -notmatch $pattern) { throw "$what không hợp lệ: $value" }
+    if ($value -and $value -notmatch $pattern) { throw (L "$what không hợp lệ: $value" "Invalid ${what}: $value") }
 }
 # Các giá trị được ghép vào lệnh chạy trên VPS: chỉ cho phép ký tự an toàn.
 Assert-Match $Server '^[A-Za-z0-9.:-]+$' 'Server'
@@ -36,7 +49,7 @@ Assert-Match $User '^[A-Za-z_][A-Za-z0-9._-]*$' 'User'
 Assert-Match $Sni '^[A-Za-z0-9.-]+$' 'Sni'
 Assert-Match $Address '^[A-Za-z0-9.:-]+$' 'Address'
 Assert-Match $Name '^[A-Za-z0-9._-]{1,32}$' 'Name'
-if ($Port -lt 0 -or $Port -gt 65535) { throw "Port không hợp lệ: $Port" }
+if ($Port -lt 0 -or $Port -gt 65535) { throw (L "Port không hợp lệ: $Port" "Invalid Port: $Port") }
 
 # bash không chạy được file có CRLF: gửi bản LF nếu git đã đổi xuống dòng.
 $src = Join-Path $PSScriptRoot 'bcserver.sh'
@@ -66,21 +79,27 @@ if ($Sni) { $installArgs += @('--sni', $Sni) }
 if ($Address) { $installArgs += @('--host', $Address) }
 if ($Name) { $installArgs += @('--name', $Name) }
 $sudo = if ($User -eq 'root') { '' } else { 'sudo ' }
-$remote = "${sudo}bash ~/bcserver.sh $($installArgs -join ' '); rc=`$?; rm -f ~/bcserver.sh; exit `$rc"
+# BC_LANG goes after sudo (sudo takes VAR=value before the command) so that
+# bcserver answers in the same language.
+$remote = "${sudo}BC_LANG=$bcLang bash ~/bcserver.sh$($installArgs -join ' '); rc=`$?; rm -f ~/bcserver.sh; exit `$rc"
 
 try {
-    Write-Host "==> Chép bcserver.sh lên $Server"
+    Write-Host ('==> ' + (L "Chép bcserver.sh lên $Server" "Copying bcserver.sh to $Server"))
     & scp @scpOpts $upload "${scpTarget}:bcserver.sh"
-    if ($LASTEXITCODE -ne 0) { throw "scp thất bại (mã $LASTEXITCODE)" }
+    if ($LASTEXITCODE -ne 0) { throw (L "scp thất bại (mã $LASTEXITCODE)" "scp failed (exit code $LASTEXITCODE)") }
 
-    Write-Host "==> Cài đặt trên VPS"
+    Write-Host ('==> ' + (L 'Cài đặt trên VPS' 'Installing on the VPS'))
     & ssh -t @sshOpts $target $remote
-    if ($LASTEXITCODE -ne 0) { throw "cài đặt trên VPS thất bại (mã $LASTEXITCODE), xem thông báo ở trên" }
+    if ($LASTEXITCODE -ne 0) {
+        throw (L "cài đặt trên VPS thất bại (mã $LASTEXITCODE), xem thông báo ở trên" `
+                "the installation on the VPS failed (exit code $LASTEXITCODE), see the messages above")
+    }
 }
 finally {
     if ($upload -ne $src) { Remove-Item -Force $upload -ErrorAction SilentlyContinue }
 }
 
 Write-Host ''
-Write-Host 'Xong. Copy link vless:// ở trên, mở Black Cyclone > Server riêng > dán link.'
-Write-Host "Quản lý về sau: ssh $target, rồi chạy ${sudo}bcserver help"
+Write-Host (L 'Xong. Copy link vless:// ở trên, mở Black Cyclone > Server riêng > dán link.' `
+        'Done. Copy the vless:// link above, open Black Cyclone > Own server > paste the link.')
+Write-Host (L "Quản lý về sau: ssh $target, rồi chạy ${sudo}bcserver help" "To manage it later: ssh $target, then run ${sudo}bcserver help")
